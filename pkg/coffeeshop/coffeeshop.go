@@ -1,4 +1,4 @@
-package main
+package coffeeshop
 
 import (
 	"fmt"
@@ -19,11 +19,11 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 	return &CoffeeShop{grinders: grinders, brewers: brewers}
 }
 
-func (cs *CoffeeShop) makeCoffee(order Order) Coffee {
+func (cs *CoffeeShop) MakeCoffee(order Order) Coffee {
 	fmt.Printf("make order %v\n", order)
 	// assume that we need 2 grams of beans for 1 ounce of coffee
 	gramsNeededPerOunce := 2
-	ungroundBeans := Beans{weightGrams: gramsNeededPerOunce * order.ouncesOfCoffeeWanted}
+	ungroundBeans := Beans{weightGrams: gramsNeededPerOunce * order.OuncesOfCoffeeWanted}
 	// choose a random grinder and grind the beans
 	grinderIdx := rand.Intn(len(cs.grinders))
 	groundBeans := cs.grinders[grinderIdx].Grind(ungroundBeans)

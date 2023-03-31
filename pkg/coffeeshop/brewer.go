@@ -1,10 +1,10 @@
-package main
+package coffeeshop
 
 import "fmt"
 
 type Brewer struct {
 	// assume we have unlimited water, but we can only run a certain amount of water per second into our brewer + beans
-	ouncesWaterPerSecond int
+	OuncesWaterPerSecond int
 }
 
 func (b *Brewer) Brew(beans Beans) Coffee {

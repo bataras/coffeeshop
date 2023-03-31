@@ -1,4 +1,4 @@
-package main
+package coffeeshop
 
 type Beans struct {
 	weightGrams int

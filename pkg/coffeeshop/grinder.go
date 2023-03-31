@@ -1,9 +1,9 @@
-package main
+package coffeeshop
 
 import "fmt"
 
 type Grinder struct {
-	gramsPerSecond int
+	GramsPerSecond int
 }
 
 func (g *Grinder) Grind(beans Beans) Beans {

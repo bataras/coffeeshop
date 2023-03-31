@@ -1,6 +1,6 @@
-package main
+package coffeeshop
 
 type Order struct {
-	ouncesOfCoffeeWanted int
+	OuncesOfCoffeeWanted int
 	// add strengthWanted
 }

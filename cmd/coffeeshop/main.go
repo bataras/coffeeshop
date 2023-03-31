@@ -1,6 +1,7 @@
 package main
 
 import (
+	"coffeeshop/pkg/coffeeshop"
 	"fmt"
 	"sync"
 )
@@ -14,15 +15,14 @@ func main() {
 	// Some struct types and their functions need to be filled in properly. It may be helpful to finish the
 	// Grinder impl, and then Brewer impl each, and then see how things all fit together inside CoffeeShop afterwards.
 
-	//b := Beans{weightGrams: 10}
-	g1 := &Grinder{gramsPerSecond: 5}
-	g2 := &Grinder{gramsPerSecond: 3}
-	g3 := &Grinder{gramsPerSecond: 12}
+	g1 := &coffeeshop.Grinder{GramsPerSecond: 5}
+	g2 := &coffeeshop.Grinder{GramsPerSecond: 3}
+	g3 := &coffeeshop.Grinder{GramsPerSecond: 12}
 
-	b1 := &Brewer{ouncesWaterPerSecond: 100}
-	b2 := &Brewer{ouncesWaterPerSecond: 25}
+	b1 := &coffeeshop.Brewer{OuncesWaterPerSecond: 100}
+	b2 := &coffeeshop.Brewer{OuncesWaterPerSecond: 25}
 
-	cs := NewCoffeeShop([]*Grinder{g1, g2, g3}, []*Brewer{b1, b2})
+	cs := coffeeshop.NewCoffeeShop([]*coffeeshop.Grinder{g1, g2, g3}, []*coffeeshop.Brewer{b1, b2})
 
 	var wg sync.WaitGroup
 	numCustomers := 10
@@ -30,7 +30,7 @@ func main() {
 		// in parallel, all at once, make calls to MakeCoffee
 		wg.Add(1)
 		go func() {
-			coffee := cs.makeCoffee(Order{ouncesOfCoffeeWanted: 12})
+			coffee := cs.MakeCoffee(coffeeshop.Order{OuncesOfCoffeeWanted: 12})
 			fmt.Printf("made %v\n", coffee)
 			wg.Done()
 		}()
