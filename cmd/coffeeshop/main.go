@@ -30,12 +30,13 @@ func main() {
 		// in parallel, all at once, make calls to MakeCoffee
 		wg.Add(1)
 		go func() {
-			coffee := cs.MakeCoffee(coffeeshop.Order{OuncesOfCoffeeWanted: 12})
-			fmt.Printf("made %v\n", coffee)
+			coffee, err := cs.MakeCoffee(coffeeshop.Order{OuncesOfCoffeeWanted: 12})
+			fmt.Printf("made %v err %v\n", coffee, err)
 			wg.Done()
 		}()
 	}
 	wg.Wait()
+
 	// Issues with the above
 	// 1. Assumes that we have unlimited amounts of grinders and brewers.
 	//		- How do we build in logic that takes into account that a given Grinder or Brewer is busy?
