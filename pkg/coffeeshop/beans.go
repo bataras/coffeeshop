@@ -1,6 +1,6 @@
 package coffeeshop
 
 type Beans struct {
-	weightGrams float32
+	weightGrams int
 	// indicate some state change? create a new type?
 }

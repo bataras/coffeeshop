@@ -10,7 +10,12 @@ type CoffeeShop struct {
 	// that can brew. allow baristas to occasionally go on break and clean tables and empty a full waste hopper
 
 	// todo: add hoppers and a waste bucket/hopper
+	// todo: add multiple bean types (and hoppers)
+
+	// baristas grab jobs: orders, filling hoppers, cleaning tables, taking breaks
+	// baristas grab resources for exclusive use: hoppers, grinders, brewers
 	extractionProfiles       IExtractionProfiles
+	beanHopper               Hopper
 	grinders                 []*Grinder
 	brewers                  []*Brewer
 	totalAmountUngroundBeans int
@@ -19,7 +24,7 @@ type CoffeeShop struct {
 }
 
 type Coffee struct {
-	// should hold size maybe?
+	// todo: should hold size maybe?
 }
 
 func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
@@ -39,12 +44,20 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 		shop.bchan <- b
 	}
 
+	shop.beanHopper.AddBeans(100)
+
 	return &shop
 }
 
 func (cs *CoffeeShop) MakeCoffee(order Order) (Coffee, error) {
 	log.Infof("make order %v\n", order)
+
 	extractionProfile := cs.getExtractionProfile(order.StrengthWanted)
+	beansNeeded := extractionProfile.GramsFromOunces(order.OuncesOfCoffeeWanted)
+	err := cs.beanHopper.TakeBeans(beansNeeded)
+	if err != nil {
+		return Coffee{}, err
+	}
 	ungroundBeans := Beans{weightGrams: extractionProfile.GramsFromOunces(order.OuncesOfCoffeeWanted)}
 
 	// wait for a grinder

@@ -6,7 +6,7 @@ import (
 )
 
 type Grinder struct {
-	GramsPerSecond float32
+	GramsPerSecond int
 }
 
 func (g *Grinder) Grind(beans Beans) Beans {

@@ -1,5 +1,7 @@
 package coffeeshop
 
+import "math"
+
 type ExtractionStrength int
 
 const (
@@ -16,7 +18,7 @@ const normalDripGrams = 21 // roughly typical grind amount for a 300g pour over
 var _ IExtractionProfile = &extractionProfile{}
 
 type IExtractionProfile interface {
-	GramsFromOunces(ounces int) float32
+	GramsFromOunces(ounces int) int
 }
 
 type IExtractionProfiles interface {
@@ -24,7 +26,7 @@ type IExtractionProfiles interface {
 }
 
 type extractionProfile struct {
-	gramsNeededPerOunce float32
+	gramsNeededPerOunce float64
 	// todo: grind setting? like espresso, drip, etc
 	//grindSetting       int
 }
@@ -53,6 +55,8 @@ func (p *extractionProfiles) GetProfile(kind ExtractionStrength) IExtractionProf
 	return &profile
 }
 
-func (p *extractionProfile) GramsFromOunces(ounces int) float32 {
-	return p.gramsNeededPerOunce * float32(ounces)
+// computes grams using float and returns a rounded int gram amount
+func (p *extractionProfile) GramsFromOunces(ounces int) int {
+	val := p.gramsNeededPerOunce * float64(ounces)
+	return int(math.Round(val))
 }
