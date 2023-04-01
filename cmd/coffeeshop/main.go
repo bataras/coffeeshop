@@ -2,10 +2,23 @@ package main
 
 import (
 	"coffeeshop/pkg/coffeeshop"
-	"fmt"
+	log "github.com/sirupsen/logrus"
+	"os"
 	"sync"
+	"time"
 )
 
+func init() {
+	// todo: config logging
+	log.SetOutput(os.Stdout)
+	//log.SetReportCaller(true)
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp:   true,
+		TimestampFormat: time.StampMicro,
+	})
+}
+
+// todo: add app config
 func main() {
 	// Premise: we want to model a coffee shop. An order comes in, and then with a limited amount of grinders and
 	// brewers (each of which can be "busy"): we must grind unground beans, take the resulting ground beans, and then
@@ -19,8 +32,8 @@ func main() {
 	g2 := &coffeeshop.Grinder{GramsPerSecond: 3}
 	g3 := &coffeeshop.Grinder{GramsPerSecond: 12}
 
-	b1 := &coffeeshop.Brewer{OuncesWaterPerSecond: 100}
-	b2 := &coffeeshop.Brewer{OuncesWaterPerSecond: 25}
+	b1 := &coffeeshop.Brewer{OuncesWaterPerSecond: 2}
+	b2 := &coffeeshop.Brewer{OuncesWaterPerSecond: 5}
 
 	cs := coffeeshop.NewCoffeeShop([]*coffeeshop.Grinder{g1, g2, g3}, []*coffeeshop.Brewer{b1, b2})
 
@@ -31,7 +44,7 @@ func main() {
 		wg.Add(1)
 		go func() {
 			coffee, err := cs.MakeCoffee(coffeeshop.Order{OuncesOfCoffeeWanted: 12})
-			fmt.Printf("made %v err %v\n", coffee, err)
+			log.Infof("made %v err %v\n", coffee, err)
 			wg.Done()
 		}()
 	}

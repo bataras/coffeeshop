@@ -1,18 +1,19 @@
 package coffeeshop
 
 import (
-	"fmt"
+	log "github.com/sirupsen/logrus"
 	"time"
 )
 
 type Grinder struct {
-	GramsPerSecond int
+	GramsPerSecond float32
 }
 
 func (g *Grinder) Grind(beans Beans) Beans {
 	// how long should it take this function to complete?
 	// i.e. time.Sleep(XXX)
-	fmt.Printf("grind %v\n", beans)
-	time.Sleep(2 * time.Second)
-	return Beans{}
+	ms := time.Duration(beans.weightGrams*1000/g.GramsPerSecond) * time.Millisecond
+	log.Infof("grind beans %v ms %v\n", beans, ms.Milliseconds())
+	time.Sleep(ms)
+	return Beans{weightGrams: beans.weightGrams}
 }

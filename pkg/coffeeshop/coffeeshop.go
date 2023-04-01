@@ -2,10 +2,15 @@ package coffeeshop
 
 import (
 	"fmt"
-	"math/rand"
+	log "github.com/sirupsen/logrus"
 )
 
 type CoffeeShop struct {
+	// todo: add baristas and possibly "floor space" to regulate the max # of baristas
+	// that can brew. allow baristas to occasionally go on break and clean tables and empty a full waste hopper
+
+	// todo: add hoppers and a waste bucket/hopper
+	extractionProfiles       IExtractionProfiles
 	grinders                 []*Grinder
 	brewers                  []*Brewer
 	totalAmountUngroundBeans int
@@ -19,10 +24,11 @@ type Coffee struct {
 
 func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 	shop := CoffeeShop{
-		grinders: grinders,
-		brewers:  brewers,
-		gchan:    make(chan *Grinder, len(grinders)),
-		bchan:    make(chan *Brewer, len(brewers)),
+		extractionProfiles: NewExtractionProfiles(),
+		grinders:           grinders,
+		brewers:            brewers,
+		gchan:              make(chan *Grinder, len(grinders)),
+		bchan:              make(chan *Brewer, len(brewers)),
 	}
 
 	for _, g := range grinders {
@@ -37,42 +43,48 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 }
 
 func (cs *CoffeeShop) MakeCoffee(order Order) (Coffee, error) {
-	fmt.Printf("make order %v\n", order)
-	// assume that we need 2 grams of beans for 1 ounce of coffee
-	gramsNeededPerOunce := 2
-	ungroundBeans := Beans{weightGrams: gramsNeededPerOunce * order.OuncesOfCoffeeWanted}
+	log.Infof("make order %v\n", order)
+	extractionProfile := cs.getExtractionProfile(order.StrengthWanted)
+	ungroundBeans := Beans{weightGrams: extractionProfile.GramsFromOunces(order.OuncesOfCoffeeWanted)}
 
+	// wait for a grinder
 	grinder, ok := <-cs.gchan
 	if !ok {
 		return Coffee{}, fmt.Errorf("closed")
 	}
 
 	groundBeans := grinder.Grind(ungroundBeans)
-	cs.gchan <- grinder
+	cs.gchan <- grinder // put it back
 
+	// wait for a brewer
 	brewer, ok := <-cs.bchan
 	if !ok {
 		return Coffee{}, fmt.Errorf("closed")
 	}
 
-	coffee := brewer.Brew(groundBeans)
-	cs.bchan <- brewer
+	coffee := brewer.Brew(groundBeans, order.OuncesOfCoffeeWanted)
+	cs.bchan <- brewer // put it back
 	return coffee, nil
-
-	//// choose a random grinder and grind the beans
-	//grinderIdx := rand.Intn(len(cs.grinders))
-	//groundBeans := cs.grinders[grinderIdx].Grind(ungroundBeans)
-
-	// NOTE: the above is for illustration purposes and does not work, because we are not considering that certain
-	// grinders and brewers can be busy!
-
-	//brewerIdx := rand.Intn(len(cs.brewers))
-	//return cs.brewers[brewerIdx].Brew(groundBeans)
 }
 
+func (cs *CoffeeShop) getExtractionProfile(strength Strength) IExtractionProfile {
+	switch strength {
+	default:
+		fallthrough
+	case NormalStrength:
+		return cs.extractionProfiles.GetProfile(Normal)
+	case MediumStrength:
+		return cs.extractionProfiles.GetProfile(Medium)
+	case LightStrength:
+		return cs.extractionProfiles.GetProfile(Light)
+	}
+}
+
+/*
 func (cs *CoffeeShop) MakeCoffeeOrg(order Order) Coffee {
-	fmt.Printf("make order %v\n", order)
+	log.Infof("make order %v\n", order)
 	// assume that we need 2 grams of beans for 1 ounce of coffee
+	// todo: make configurable
 	gramsNeededPerOunce := 2
 	ungroundBeans := Beans{weightGrams: gramsNeededPerOunce * order.OuncesOfCoffeeWanted}
 	// choose a random grinder and grind the beans
@@ -83,5 +95,6 @@ func (cs *CoffeeShop) MakeCoffeeOrg(order Order) Coffee {
 	// grinders and brewers can be busy!
 
 	brewerIdx := rand.Intn(len(cs.brewers))
-	return cs.brewers[brewerIdx].Brew(groundBeans)
+	return cs.brewers[brewerIdx].Brew(groundBeans, order.OuncesOfCoffeeWanted)
 }
+*/
