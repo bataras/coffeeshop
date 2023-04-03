@@ -32,8 +32,8 @@ func main() {
 	g2 := coffeeshop.NewGrinder(coffeeshop.Ethiopian, 3, 5, 100, 50)
 	g3 := coffeeshop.NewGrinder(coffeeshop.French, 12, 5, 100, 50)
 
-	b1 := &coffeeshop.Brewer{OuncesWaterPerSecond: 2}
-	b2 := &coffeeshop.Brewer{OuncesWaterPerSecond: 5}
+	b1 := coffeeshop.NewBrewer(2)
+	b2 := coffeeshop.NewBrewer(5)
 
 	cs := coffeeshop.NewCoffeeShop([]*coffeeshop.Grinder{g1, g2, g3}, []*coffeeshop.Brewer{b1, b2})
 
