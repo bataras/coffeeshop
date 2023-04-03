@@ -22,10 +22,6 @@ type CoffeeShop struct {
 	bchan                    chan *Brewer
 }
 
-type Coffee struct {
-	// todo: should hold size maybe?
-}
-
 func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 	shop := CoffeeShop{
 		extractionProfiles: NewExtractionProfiles(),
@@ -46,7 +42,7 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 	return &shop
 }
 
-func (cs *CoffeeShop) MakeCoffee(order Order) (Coffee, error) {
+func (cs *CoffeeShop) MakeCoffee(order Order) (*Coffee, error) {
 	log.Infof("make order %v\n", order)
 
 	extractionProfile := cs.getExtractionProfile(order.StrengthWanted)
@@ -55,7 +51,7 @@ func (cs *CoffeeShop) MakeCoffee(order Order) (Coffee, error) {
 	// wait for a grinder
 	grinder, ok := <-cs.gchan
 	if !ok {
-		return Coffee{}, fmt.Errorf("closed")
+		return nil, fmt.Errorf("closed")
 	}
 
 	groundBeans, _ := grinder.Grind(beansNeeded, func(gramsNeeded int) Beans {
@@ -66,7 +62,7 @@ func (cs *CoffeeShop) MakeCoffee(order Order) (Coffee, error) {
 	// wait for a brewer
 	brewer, ok := <-cs.bchan
 	if !ok {
-		return Coffee{}, fmt.Errorf("closed")
+		return nil, fmt.Errorf("closed")
 	}
 
 	coffee := brewer.Brew(groundBeans, order.OuncesOfCoffeeWanted)
