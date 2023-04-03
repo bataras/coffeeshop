@@ -42,7 +42,22 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 	return &shop
 }
 
-func (cs *CoffeeShop) MakeCoffee(order Order) (*Coffee, error) {
+// OrderCoffee fires off an order and returns a channel for the customer to wait on
+func (cs *CoffeeShop) OrderCoffee(order Order) <-chan *Receipt {
+	rsp := make(chan *Receipt)
+	go func(order Order) {
+		coffee, err := cs.makeCoffee(order)
+		rsp <- &Receipt{
+			Coffee: coffee,
+			Err:    err,
+		}
+	}(order)
+
+	return rsp
+}
+
+// do the work (for now)
+func (cs *CoffeeShop) makeCoffee(order Order) (*Coffee, error) {
 	log.Infof("make order %v\n", order)
 
 	extractionProfile := cs.getExtractionProfile(order.StrengthWanted)

@@ -42,9 +42,14 @@ func main() {
 	for i := 0; i < numCustomers; i++ {
 		// in parallel, all at once, make calls to MakeCoffee
 		wg.Add(1)
+		receipt := cs.OrderCoffee(coffeeshop.Order{OuncesOfCoffeeWanted: 12})
 		go func() {
-			coffee, err := cs.MakeCoffee(coffeeshop.Order{OuncesOfCoffeeWanted: 12})
-			log.Infof("made %v err %v\n", coffee, err)
+			coffee, ok := <-receipt
+			if !ok {
+				log.Infof("order closed")
+			} else {
+				log.Infof("made %v err %v\n", coffee.Coffee, coffee.Err)
+			}
 			wg.Done()
 		}()
 	}

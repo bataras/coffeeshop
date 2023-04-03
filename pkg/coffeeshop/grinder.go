@@ -43,11 +43,11 @@ func (g *Grinder) PercentFull() int {
 func (g *Grinder) Refill(f BeanGetter) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return g.refill(f)
+	return g.refillInternal(f)
 }
 
 // do the actual refill. call when locked
-func (g *Grinder) refill(f BeanGetter) error {
+func (g *Grinder) refillInternal(f BeanGetter) error {
 	if g.hopper.PercentFull() < g.refillPercentage {
 		beans := f(g.hopper.SpaceAvailable())
 		if beans.beanType != g.BeanType() {
@@ -70,7 +70,7 @@ func (g *Grinder) Grind(grams int, f BeanGetter) (Beans, error) {
 
 	// ad-hoc refill
 	if g.hopper.Count() < grams {
-		err := g.refill(f)
+		err := g.refillInternal(f)
 		if err != nil {
 			return Beans{}, err
 		}
