@@ -35,7 +35,7 @@ type extractionProfiles struct {
 	profiles map[ExtractionStrength]extractionProfile
 }
 
-// todo: configurability
+// NewExtractionProfiles todo: configurability
 func NewExtractionProfiles() IExtractionProfiles {
 	return &extractionProfiles{
 		profiles: map[ExtractionStrength]extractionProfile{
@@ -55,7 +55,7 @@ func (p *extractionProfiles) GetProfile(kind ExtractionStrength) IExtractionProf
 	return &profile
 }
 
-// computes grams using float and returns a rounded int gram amount
+// GramsFromOunces computes grams using float and returns a rounded int gram amount
 func (p *extractionProfile) GramsFromOunces(ounces int) int {
 	val := p.gramsNeededPerOunce * float64(ounces)
 	return int(math.Round(val))
