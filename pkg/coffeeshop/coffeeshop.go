@@ -15,7 +15,6 @@ type CoffeeShop struct {
 	// baristas grab jobs: orders, filling hoppers, cleaning tables, taking breaks
 	// baristas grab resources for exclusive use: hoppers, grinders, brewers
 	extractionProfiles       IExtractionProfiles
-	beanHopper               Hopper
 	grinders                 []*Grinder
 	brewers                  []*Brewer
 	totalAmountUngroundBeans int
@@ -44,8 +43,6 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 		shop.bchan <- b
 	}
 
-	shop.beanHopper.AddBeans(100)
-
 	return &shop
 }
 
@@ -54,11 +51,6 @@ func (cs *CoffeeShop) MakeCoffee(order Order) (Coffee, error) {
 
 	extractionProfile := cs.getExtractionProfile(order.StrengthWanted)
 	beansNeeded := extractionProfile.GramsFromOunces(order.OuncesOfCoffeeWanted)
-	err := cs.beanHopper.TakeBeans(beansNeeded)
-	if err != nil {
-		return Coffee{}, err
-	}
-	ungroundBeans := Beans{weightGrams: extractionProfile.GramsFromOunces(order.OuncesOfCoffeeWanted)}
 
 	// wait for a grinder
 	grinder, ok := <-cs.gchan
@@ -66,7 +58,9 @@ func (cs *CoffeeShop) MakeCoffee(order Order) (Coffee, error) {
 		return Coffee{}, fmt.Errorf("closed")
 	}
 
-	groundBeans := grinder.Grind(ungroundBeans)
+	groundBeans, _ := grinder.Grind(beansNeeded, func(gramsNeeded int) Beans {
+		return Beans{weightGrams: beansNeeded}
+	})
 	cs.gchan <- grinder // put it back
 
 	// wait for a brewer

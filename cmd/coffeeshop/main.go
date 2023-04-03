@@ -11,7 +11,7 @@ import (
 func init() {
 	// todo: config logging
 	log.SetOutput(os.Stdout)
-	//log.SetReportCaller(true)
+	// log.SetReportCaller(true)
 	log.SetFormatter(&log.TextFormatter{
 		FullTimestamp:   true,
 		TimestampFormat: time.StampMicro,
@@ -28,9 +28,9 @@ func main() {
 	// Some struct types and their functions need to be filled in properly. It may be helpful to finish the
 	// Grinder impl, and then Brewer impl each, and then see how things all fit together inside CoffeeShop afterwards.
 
-	g1 := &coffeeshop.Grinder{GramsPerSecond: 5}
-	g2 := &coffeeshop.Grinder{GramsPerSecond: 3}
-	g3 := &coffeeshop.Grinder{GramsPerSecond: 12}
+	g1 := coffeeshop.NewGrinder(coffeeshop.Columbian, 5, 5, 100, 50)
+	g2 := coffeeshop.NewGrinder(coffeeshop.Ethiopian, 3, 5, 100, 50)
+	g3 := coffeeshop.NewGrinder(coffeeshop.French, 12, 5, 100, 50)
 
 	b1 := &coffeeshop.Brewer{OuncesWaterPerSecond: 2}
 	b2 := &coffeeshop.Brewer{OuncesWaterPerSecond: 5}
