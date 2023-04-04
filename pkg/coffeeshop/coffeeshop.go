@@ -1,6 +1,7 @@
 package coffeeshop
 
 import (
+	"coffeeshop/pkg/middleware"
 	"coffeeshop/pkg/model"
 	"coffeeshop/pkg/queue"
 	"coffeeshop/pkg/util"
@@ -26,6 +27,7 @@ type CoffeeShop struct {
 	brewerDone               chan *Brewer
 	grinderRefill            chan *Grinder
 	beanTypes                map[model.BeanType]bool
+	orderMiddleware          *middleware.Orders
 	log                      *util.Logger
 }
 
@@ -42,6 +44,7 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 		brewerDone:         make(chan *Brewer, len(brewers)),
 		cashRegister:       cashRegister,
 		orderQueue:         make(chan *model.Order, orderQueueSize),
+		orderMiddleware:    middleware.NewOrders(),
 		log:                util.NewLogger("Shop"),
 	}
 	shop.barista = NewBarista(&shop) // todo: allow multiple baristas
@@ -62,14 +65,14 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 // OrderCoffee fires off an order and returns a channel for the customer to wait on
 func (cs *CoffeeShop) OrderCoffee(beanType model.BeanType, ounces int, strength model.Strength) <-chan *model.Receipt {
 	rsp := make(chan *model.Receipt)
-	order := model.NewOrder(rsp)
+	order := model.NewOrder(rsp, cs.orderMiddleware)
 	order.BeanType = beanType
 	order.OuncesOfCoffeeWanted = ounces
 	order.StrengthWanted = strength
 
 	cs.cashRegister.Customer(order)
 
-	go func(order model.Order) {
+	go func(order *model.Order) {
 		coffee, err := cs.makeCoffee(order)
 		rsp <- &model.Receipt{
 			Coffee: coffee,
@@ -81,7 +84,7 @@ func (cs *CoffeeShop) OrderCoffee(beanType model.BeanType, ounces int, strength 
 }
 
 // do the work (for now)
-func (cs *CoffeeShop) makeCoffee(order model.Order) (*model.Coffee, error) {
+func (cs *CoffeeShop) makeCoffee(order *model.Order) (*model.Coffee, error) {
 	cs.log.Infof("make order %v\n", order)
 
 	extractionProfile := cs.getExtractionProfile(order.StrengthWanted)

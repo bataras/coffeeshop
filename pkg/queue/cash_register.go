@@ -7,32 +7,39 @@ import (
 )
 
 type CashRegister struct {
-	pendingOrders chan model.Order
+	pendingOrders chan *model.Order
 	orderDuration time.Duration
 	log           *util.Logger
 }
 
 func NewCashRegister(orderTimeMS int) *CashRegister {
 	return &CashRegister{
-		pendingOrders: make(chan model.Order, 1), // keep this non-0 in size
+		pendingOrders: make(chan *model.Order), // should be non-buffered
 		orderDuration: time.Duration(orderTimeMS) * time.Millisecond,
 		log:           util.NewLogger("CashRegister"),
 	}
 }
 
-func (c *CashRegister) IsCustomerWaiting() bool {
-	return len(c.pendingOrders) != 0
-}
-
-func (c *CashRegister) Customer(order model.Order) {
+// Customer blocks, waiting for a barista
+func (c *CashRegister) Customer(order *model.Order) {
 	c.pendingOrders <- order
 	c.log.Infof("customer placing order delay %v\n", c.orderDuration)
 	time.Sleep(c.orderDuration)
 }
 
-func (c *CashRegister) Barista() model.Order {
-	order := <-c.pendingOrders
-	c.log.Infof("barista taking order delay %v\n", c.orderDuration)
-	time.Sleep(c.orderDuration)
-	return order
+// Barista doesn't block if there are no orders waiting
+func (c *CashRegister) Barista() (*model.Order, bool) {
+	// todo: only allow 1 barista per register
+	select {
+	case order, ok := <-c.pendingOrders:
+		if !ok {
+			return nil, ok
+		}
+		c.log.Infof("barista taking order delay %v\n", c.orderDuration)
+		time.Sleep(c.orderDuration)
+		return order, ok
+
+	default:
+		return nil, false
+	}
 }
