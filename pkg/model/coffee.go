@@ -1,4 +1,4 @@
-package coffeeshop
+package model
 
 import "fmt"
 

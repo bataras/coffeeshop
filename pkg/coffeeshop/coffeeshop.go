@@ -1,9 +1,10 @@
 package coffeeshop
 
 import (
+	"coffeeshop/pkg/model"
 	"coffeeshop/pkg/queue"
+	"coffeeshop/pkg/util"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 )
 
 type CoffeeShop struct {
@@ -16,25 +17,34 @@ type CoffeeShop struct {
 	// baristas grab jobs: orders, filling hoppers, cleaning tables, taking breaks
 	// baristas grab resources for exclusive use: hoppers, grinders, brewers
 	extractionProfiles       IExtractionProfiles
-	grinders                 []*Grinder
-	brewers                  []*Brewer
 	totalAmountUngroundBeans int
 	gchan                    chan *Grinder
 	bchan                    chan *Brewer
 	cashRegister             *queue.CashRegister
+	barista                  *Barista
+	orderQueue               chan *model.Order
+	brewerDone               chan *Brewer
+	grinderRefill            chan *Grinder
+	beanTypes                map[model.BeanType]bool
+	log                      *util.Logger
 }
 
 const cashRegisterTimeMS int = 200
+const orderQueueSize int = 4
 
 func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
+	cashRegister := queue.NewCashRegister(cashRegisterTimeMS)
 	shop := CoffeeShop{
 		extractionProfiles: NewExtractionProfiles(),
-		grinders:           grinders,
-		brewers:            brewers,
 		gchan:              make(chan *Grinder, len(grinders)),
 		bchan:              make(chan *Brewer, len(brewers)),
-		cashRegister:       queue.NewCashRegister(cashRegisterTimeMS),
+		grinderRefill:      make(chan *Grinder, len(grinders)),
+		brewerDone:         make(chan *Brewer, len(brewers)),
+		cashRegister:       cashRegister,
+		orderQueue:         make(chan *model.Order, orderQueueSize),
+		log:                util.NewLogger("Shop"),
 	}
+	shop.barista = NewBarista(&shop) // todo: allow multiple baristas
 
 	for _, g := range grinders {
 		shop.gchan <- g
@@ -44,18 +54,24 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 		shop.bchan <- b
 	}
 
+	shop.barista.Work()
+
 	return &shop
 }
 
 // OrderCoffee fires off an order and returns a channel for the customer to wait on
-func (cs *CoffeeShop) OrderCoffee(order Order) <-chan *Receipt {
-	go cs.cashRegister.Barista()
-	cs.cashRegister.Customer()
+func (cs *CoffeeShop) OrderCoffee(beanType model.BeanType, ounces int, strength model.Strength) <-chan *model.Receipt {
+	rsp := make(chan *model.Receipt)
+	order := model.NewOrder(rsp)
+	order.BeanType = beanType
+	order.OuncesOfCoffeeWanted = ounces
+	order.StrengthWanted = strength
 
-	rsp := make(chan *Receipt)
-	go func(order Order) {
+	cs.cashRegister.Customer(order)
+
+	go func(order model.Order) {
 		coffee, err := cs.makeCoffee(order)
-		rsp <- &Receipt{
+		rsp <- &model.Receipt{
 			Coffee: coffee,
 			Err:    err,
 		}
@@ -65,8 +81,8 @@ func (cs *CoffeeShop) OrderCoffee(order Order) <-chan *Receipt {
 }
 
 // do the work (for now)
-func (cs *CoffeeShop) makeCoffee(order Order) (*Coffee, error) {
-	log.Infof("make order %v\n", order)
+func (cs *CoffeeShop) makeCoffee(order model.Order) (*model.Coffee, error) {
+	cs.log.Infof("make order %v\n", order)
 
 	extractionProfile := cs.getExtractionProfile(order.StrengthWanted)
 	beansNeeded := extractionProfile.GramsFromOunces(order.OuncesOfCoffeeWanted)
@@ -77,8 +93,8 @@ func (cs *CoffeeShop) makeCoffee(order Order) (*Coffee, error) {
 		return nil, fmt.Errorf("closed")
 	}
 
-	groundBeans, _ := grinder.Grind(beansNeeded, func(gramsNeeded int) Beans {
-		return Beans{weightGrams: beansNeeded}
+	groundBeans, _ := grinder.Grind(beansNeeded, func(gramsNeeded int) model.Beans {
+		return model.Beans{WeightGrams: beansNeeded}
 	})
 	cs.gchan <- grinder // put it back
 
@@ -88,27 +104,29 @@ func (cs *CoffeeShop) makeCoffee(order Order) (*Coffee, error) {
 		return nil, fmt.Errorf("closed")
 	}
 
-	coffee := brewer.Brew(groundBeans, order.OuncesOfCoffeeWanted)
+	brewer.Brew(groundBeans, order.OuncesOfCoffeeWanted, cs.brewerDone)
+	brewer = <-cs.brewerDone
+	coffee := brewer.GetCoffee()
 	cs.bchan <- brewer // put it back
 	return coffee, nil
 }
 
-func (cs *CoffeeShop) getExtractionProfile(strength Strength) IExtractionProfile {
+func (cs *CoffeeShop) getExtractionProfile(strength model.Strength) IExtractionProfile {
 	switch strength {
 	default:
 		fallthrough
-	case NormalStrength:
+	case model.NormalStrength:
 		return cs.extractionProfiles.GetProfile(Normal)
-	case MediumStrength:
+	case model.MediumStrength:
 		return cs.extractionProfiles.GetProfile(Medium)
-	case LightStrength:
+	case model.LightStrength:
 		return cs.extractionProfiles.GetProfile(Light)
 	}
 }
 
 /*
 func (cs *CoffeeShop) MakeCoffeeOrg(order Order) Coffee {
-	log.Infof("make order %v\n", order)
+	cs.log.Infof("make order %v\n", order)
 	// assume that we need 2 grams of beans for 1 ounce of coffee
 	// todo: make configurable
 	gramsNeededPerOunce := 2

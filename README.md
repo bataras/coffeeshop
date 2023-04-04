@@ -97,6 +97,9 @@ Coffee Shop Configuration
 - if it has > 1 bean types B, it must have either B hopper-grinders or at least 1 ad-hoc grinder
 - coffee strengths: grams of beans needed for light, medium, strong
 - coffee sizes: small, medium, large... 8, 12 or 16oz
+- P time for customer to place order
+- grinder-specific refill and grind rates
+- brewer-specific brew rates
 
 Operational Ideals
 -------
@@ -118,6 +121,7 @@ Operational Metrics
 - avg barista idle time
 - grinder idle times
 - brewer idle times
+- grinder and brewer parallelism
 - ad nauseam...
 
 Order Processing Pipeline
@@ -173,3 +177,19 @@ Barista Handling Stage
   - start the brewer
     - have the brewer add itself to the brewer done queue when it's done. use a closure probably
 - loop forever
+
+
+Tech Choices
+==========
+General approach...
+- Use google, youtube, awesome-go (https://awesome-go.com/)
+- Find libraries on github
+- Look for...
+  - popularity (stars, forks, views etc)
+  - recency: when was the last commit
+  - stability: is the author still playing with it, fixing/testing stuff
+  - authority: are tech influencers talking about or using it
+- Read the code and examples
+  - is it clean
+  - obvious errors (I've seen this)
+  - is it trying to do too much, overkill

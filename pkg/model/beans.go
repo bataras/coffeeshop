@@ -1,4 +1,4 @@
-package coffeeshop
+package model
 
 type BeanType int
 
@@ -8,6 +8,18 @@ const (
 	French
 	Italian
 )
+
+func BeanTypeList() []BeanType {
+	return []BeanType{Columbian, Ethiopian, French, Italian}
+}
+
+func BeanTypeMap() (ret map[BeanType]bool) {
+	ret = map[BeanType]bool{}
+	for _, t := range BeanTypeList() {
+		ret[t] = true
+	}
+	return
+}
 
 func (b BeanType) String() string {
 	switch b {
@@ -25,7 +37,7 @@ func (b BeanType) String() string {
 }
 
 type Beans struct {
-	beanType    BeanType
-	weightGrams int
+	BeanType    BeanType
+	WeightGrams int
 	// indicate some state change? create a new type?
 }

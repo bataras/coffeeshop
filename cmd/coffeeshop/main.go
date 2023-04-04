@@ -2,6 +2,8 @@ package main
 
 import (
 	"coffeeshop/pkg/coffeeshop"
+	"coffeeshop/pkg/model"
+	"coffeeshop/pkg/util"
 	log "github.com/sirupsen/logrus"
 	"os"
 	"sync"
@@ -20,6 +22,7 @@ func init() {
 
 // todo: add app config
 func main() {
+	log := util.NewLogger("Main")
 	// Premise: we want to model a coffee shop. An order comes in, and then with a limited amount of grinders and
 	// brewers (each of which can be "busy"): we must grind unground beans, take the resulting ground beans, and then
 	// brew them into liquid coffee. We need to coordinate the work when grinders and/or brewers are busy doing work
@@ -28,9 +31,9 @@ func main() {
 	// Some struct types and their functions need to be filled in properly. It may be helpful to finish the
 	// Grinder impl, and then Brewer impl each, and then see how things all fit together inside CoffeeShop afterwards.
 
-	g1 := coffeeshop.NewGrinder(coffeeshop.Columbian, 5, 5, 100, 50)
-	g2 := coffeeshop.NewGrinder(coffeeshop.Ethiopian, 3, 5, 100, 50)
-	g3 := coffeeshop.NewGrinder(coffeeshop.French, 12, 5, 100, 50)
+	g1 := coffeeshop.NewGrinder(model.Columbian, 5, 5, 100, 50)
+	g2 := coffeeshop.NewGrinder(model.Ethiopian, 3, 5, 100, 50)
+	g3 := coffeeshop.NewGrinder(model.French, 12, 5, 100, 50)
 
 	b1 := coffeeshop.NewBrewer(2)
 	b2 := coffeeshop.NewBrewer(5)
@@ -38,11 +41,11 @@ func main() {
 	cs := coffeeshop.NewCoffeeShop([]*coffeeshop.Grinder{g1, g2, g3}, []*coffeeshop.Brewer{b1, b2})
 
 	var wg sync.WaitGroup
-	numCustomers := 10
+	numCustomers := 1
 	for i := 0; i < numCustomers; i++ {
 		// in parallel, all at once, make calls to MakeCoffee
 		wg.Add(1)
-		receipt := cs.OrderCoffee(coffeeshop.Order{OuncesOfCoffeeWanted: 12})
+		receipt := cs.OrderCoffee(model.Columbian, 12, model.NormalStrength)
 		go func() {
 			coffee, ok := <-receipt
 			if !ok {

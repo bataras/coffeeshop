@@ -1,4 +1,4 @@
-package coffeeshop
+package model
 
 type Strength int
 
@@ -22,8 +22,19 @@ func (s Strength) String() string {
 }
 
 type Order struct {
+	BeanType             BeanType
 	OuncesOfCoffeeWanted int
 	StrengthWanted       Strength
+	done                 chan<- *Receipt
+	// todo: maybe have a audit/observable mechanism and return the order to the customer instead of the receipt channel
+}
+
+func NewOrder(receipts chan<- *Receipt) Order {
+	return Order{done: receipts}
+}
+
+func (o *Order) Complete(receipt *Receipt) {
+	o.done <- receipt
 }
 
 type Receipt struct {

@@ -1,6 +1,7 @@
 package coffeeshop
 
 import (
+	"coffeeshop/pkg/model"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -8,11 +9,13 @@ import (
 
 func TestBrewer_Brew(t *testing.T) {
 	brewer := NewBrewer(50)
+	done := make(chan *Brewer)
 	tm := time.Now()
-	brewer.Brew(Beans{
-		beanType:    Ethiopian,
-		weightGrams: 50,
-	}, 5)
+	brewer.Brew(model.Beans{
+		BeanType:    model.Ethiopian,
+		WeightGrams: 50,
+	}, 5, done)
+	<-done
 	// should be +100ms
 	assert.WithinRange(t, time.Now(), tm.Add(time.Millisecond*95), tm.Add(time.Millisecond*105))
 }

@@ -1,26 +1,29 @@
 package coffeeshop
 
 import (
+	"coffeeshop/pkg/model"
 	"coffeeshop/pkg/util"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"sync"
 	"time"
 )
 
 type Grinder struct {
 	mu                  sync.Mutex
-	beanType            BeanType
+	log                 *util.Logger
+	beanType            model.BeanType
 	hopper              *Hopper
 	grindGramsPerSecond util.Rate
 	addGramsPerSecond   util.Rate
 	refillPercentage    int
 }
 
-type BeanGetter func(gramsNeeded int) Beans
+type BeanGetter func(gramsNeeded int) model.Beans
 
-func NewGrinder(beanType BeanType, grindGramsPerSecond, addGramsPerSecond, hopperSize int, refillPercentage int) *Grinder {
+func NewGrinder(beanType model.BeanType, grindGramsPerSecond,
+	addGramsPerSecond, hopperSize int, refillPercentage int) *Grinder {
 	val := &Grinder{
+		log:              util.NewLogger("Grinder"),
 		beanType:         beanType,
 		hopper:           NewHopper(hopperSize),
 		refillPercentage: refillPercentage,
@@ -30,7 +33,7 @@ func NewGrinder(beanType BeanType, grindGramsPerSecond, addGramsPerSecond, hoppe
 	return val
 }
 
-func (g *Grinder) BeanType() BeanType {
+func (g *Grinder) BeanType() model.BeanType {
 	return g.beanType
 }
 
@@ -50,21 +53,21 @@ func (g *Grinder) Refill(f BeanGetter) error {
 func (g *Grinder) refillInternal(f BeanGetter) error {
 	if g.hopper.PercentFull() < g.refillPercentage {
 		beans := f(g.hopper.SpaceAvailable())
-		if beans.beanType != g.BeanType() {
+		if beans.BeanType != g.BeanType() {
 			return fmt.Errorf("tried to refill with wrong beantype")
 		}
 
-		g.hopper.AddBeans(beans.weightGrams)
+		g.hopper.AddBeans(beans.WeightGrams)
 
-		ms := g.addGramsPerSecond.Duration(beans.weightGrams)
-		log.Infof("add beans %v ms %v\n", beans, ms.Milliseconds())
+		ms := g.addGramsPerSecond.Duration(beans.WeightGrams)
+		g.log.Infof("add beans %v ms %v\n", beans, ms.Milliseconds())
 		time.Sleep(ms)
 	}
 	return nil
 }
 
 // Grind grinds beans. takes time
-func (g *Grinder) Grind(grams int, f BeanGetter) (Beans, error) {
+func (g *Grinder) Grind(grams int, f BeanGetter) (model.Beans, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -72,18 +75,18 @@ func (g *Grinder) Grind(grams int, f BeanGetter) (Beans, error) {
 	if g.hopper.Count() < grams {
 		err := g.refillInternal(f)
 		if err != nil {
-			return Beans{}, err
+			return model.Beans{}, err
 		}
 	}
 
 	took := g.hopper.TakeBeans(grams)
 	if took != grams {
 		g.hopper.AddBeans(took)
-		return Beans{}, fmt.Errorf("not enough beans. want %v got %v", grams, took)
+		return model.Beans{}, fmt.Errorf("not enough beans. want %v got %v", grams, took)
 	}
 
 	ms := g.grindGramsPerSecond.Duration(grams)
-	log.Infof("grind beans %v ms %v\n", grams, ms.Milliseconds())
+	g.log.Infof("grind beans %v ms %v\n", grams, ms.Milliseconds())
 	time.Sleep(ms)
-	return Beans{weightGrams: grams}, nil
+	return model.Beans{WeightGrams: grams}, nil
 }
