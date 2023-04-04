@@ -1,6 +1,7 @@
 package coffeeshop
 
 import (
+	"coffeeshop/pkg/queue"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 )
@@ -20,7 +21,10 @@ type CoffeeShop struct {
 	totalAmountUngroundBeans int
 	gchan                    chan *Grinder
 	bchan                    chan *Brewer
+	cashRegister             *queue.CashRegister
 }
+
+const cashRegisterTimeMS int = 200
 
 func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 	shop := CoffeeShop{
@@ -29,6 +33,7 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 		brewers:            brewers,
 		gchan:              make(chan *Grinder, len(grinders)),
 		bchan:              make(chan *Brewer, len(brewers)),
+		cashRegister:       queue.NewCashRegister(cashRegisterTimeMS),
 	}
 
 	for _, g := range grinders {
@@ -44,6 +49,9 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 
 // OrderCoffee fires off an order and returns a channel for the customer to wait on
 func (cs *CoffeeShop) OrderCoffee(order Order) <-chan *Receipt {
+	go cs.cashRegister.Barista()
+	cs.cashRegister.Customer()
+
 	rsp := make(chan *Receipt)
 	go func(order Order) {
 		coffee, err := cs.makeCoffee(order)
