@@ -18,7 +18,9 @@ type Grinder struct {
 	refillPercentage    int
 }
 
-type BeanGetter func(gramsNeeded int) model.Beans
+type IRoaster interface {
+	GetBeans(gramsNeeded int) model.Beans
+}
 
 func NewGrinder(beanType model.BeanType, grindGramsPerSecond,
 	addGramsPerSecond, hopperSize int, refillPercentage int) *Grinder {
@@ -43,16 +45,16 @@ func (g *Grinder) PercentFull() int {
 
 // Refill refills the grinder if it's too low on product. takes time.
 // try to do this when idle instead of when fulfilling an order
-func (g *Grinder) Refill(f BeanGetter) error {
+func (g *Grinder) Refill(f IRoaster) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.refillInternal(f)
 }
 
 // do the actual refill. call when locked
-func (g *Grinder) refillInternal(f BeanGetter) error {
+func (g *Grinder) refillInternal(roaster IRoaster) error {
 	if g.hopper.PercentFull() < g.refillPercentage {
-		beans := f(g.hopper.SpaceAvailable())
+		beans := roaster.GetBeans(g.hopper.SpaceAvailable())
 		if beans.BeanType != g.BeanType() {
 			return fmt.Errorf("tried to refill with wrong beantype")
 		}
@@ -67,13 +69,13 @@ func (g *Grinder) refillInternal(f BeanGetter) error {
 }
 
 // Grind grinds beans. takes time
-func (g *Grinder) Grind(grams int, f BeanGetter) (model.Beans, error) {
+func (g *Grinder) Grind(grams int, refill chan<- *Grinder, roaster IRoaster) (model.Beans, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
 	// ad-hoc refill
 	if g.hopper.Count() < grams {
-		err := g.refillInternal(f)
+		err := g.refillInternal(roaster)
 		if err != nil {
 			return model.Beans{}, err
 		}
@@ -82,7 +84,12 @@ func (g *Grinder) Grind(grams int, f BeanGetter) (model.Beans, error) {
 	took := g.hopper.TakeBeans(grams)
 	if took != grams {
 		g.hopper.AddBeans(took)
+		// requested grams will never be satisfied...
 		return model.Beans{}, fmt.Errorf("not enough beans. want %v got %v", grams, took)
+	}
+
+	if g.hopper.PercentFull() < g.refillPercentage {
+		refill <- g // Let the baristas know I should be refilled
 	}
 
 	ms := g.grindGramsPerSecond.Duration(grams)

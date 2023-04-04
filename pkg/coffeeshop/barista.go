@@ -24,6 +24,7 @@ func (b *Barista) Work() {
 		for {
 			b.CheckCashRegister()
 			b.CheckDoneBrewers()
+			b.CheckGrinderRefills()
 		}
 	}()
 }
@@ -64,6 +65,17 @@ func (b *Barista) CheckDoneBrewers() {
 		if ok {
 			b.log.Infof("brewer done %v", brewer)
 			b.shop.bchan <- brewer // put it back
+		}
+	default:
+	}
+}
+
+func (b *Barista) CheckGrinderRefills() {
+	select {
+	case grinder, ok := <-b.shop.grinderRefill:
+		if ok {
+			b.log.Infof("grinder refill %v", grinder)
+			grinder.Refill(b.shop.roaster)
 		}
 	default:
 	}

@@ -17,18 +17,18 @@ type CoffeeShop struct {
 
 	// baristas grab jobs: orders, filling hoppers, cleaning tables, taking breaks
 	// baristas grab resources for exclusive use: hoppers, grinders, brewers
-	extractionProfiles       IExtractionProfiles
-	totalAmountUngroundBeans int
-	gchan                    chan *Grinder
-	bchan                    chan *Brewer
-	cashRegister             *queue.CashRegister
-	barista                  *Barista
-	orderQueue               chan *model.Order
-	brewerDone               chan *Brewer
-	grinderRefill            chan *Grinder
-	beanTypes                map[model.BeanType]bool
-	orderMiddleware          *middleware.Orders
-	log                      *util.Logger
+	extractionProfiles IExtractionProfiles
+	roaster            *Roaster
+	gchan              chan *Grinder
+	bchan              chan *Brewer
+	cashRegister       *queue.CashRegister
+	barista            *Barista
+	orderQueue         chan *model.Order
+	brewerDone         chan *Brewer
+	grinderRefill      chan *Grinder
+	beanTypes          map[model.BeanType]bool
+	orderMiddleware    *middleware.Orders
+	log                *util.Logger
 }
 
 const cashRegisterTimeMS int = 200
@@ -38,6 +38,7 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 	cashRegister := queue.NewCashRegister(cashRegisterTimeMS)
 	shop := CoffeeShop{
 		extractionProfiles: NewExtractionProfiles(),
+		roaster:            NewRoaster(),
 		gchan:              make(chan *Grinder, len(grinders)),
 		bchan:              make(chan *Brewer, len(brewers)),
 		grinderRefill:      make(chan *Grinder, len(grinders)),
@@ -49,6 +50,7 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 	}
 	shop.barista = NewBarista(&shop) // todo: allow multiple baristas
 
+	// todo build brewers/grinders from config and assign done channels here
 	for _, g := range grinders {
 		shop.gchan <- g
 	}
@@ -96,9 +98,7 @@ func (cs *CoffeeShop) makeCoffee(order *model.Order) (*model.Coffee, error) {
 		return nil, fmt.Errorf("closed")
 	}
 
-	groundBeans, _ := grinder.Grind(beansNeeded, func(gramsNeeded int) model.Beans {
-		return model.Beans{WeightGrams: beansNeeded}
-	})
+	groundBeans, _ := grinder.Grind(beansNeeded, cs.grinderRefill, cs.roaster)
 	cs.gchan <- grinder // put it back
 
 	// wait for a brewer
