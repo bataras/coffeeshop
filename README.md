@@ -190,3 +190,8 @@ General approach...
   - is it clean
   - obvious errors (I've seen this)
   - is it trying to do too much, overkill
+- Future proof-y
+  - is the work being done a POC
+  - does the library's interface appear to be generalized and abstracted enough to reasonably extensible
+  - does it feel too tightly coupled for the usage model
+  - on the other hand, sometimes it's ok to knowingly adopt something that you can grow with longer term
