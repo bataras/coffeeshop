@@ -74,7 +74,7 @@ func (b *Barista) CheckCashRegister() {
 	go func(order *Order) {
 		if grinder, ok := <-b.shop.gchan; ok {
 			order.SetGrinder(grinder)
-			b.shop.orderQueue <- order
+			b.shop.orderQueue.Push(order, -order.OrderNumber) // older orders are higher priority
 		}
 	}(order)
 }
@@ -108,13 +108,8 @@ func (b *Barista) CheckNewOrders() {
 	shop := b.shop
 	var order *Order
 
-	select {
-	case orderItem, ok := <-shop.orderQueue:
-		if !ok {
-			return
-		}
-		order = orderItem
-	default:
+	order, ok := shop.orderQueue.Wait0()
+	if !ok {
 		return
 	}
 

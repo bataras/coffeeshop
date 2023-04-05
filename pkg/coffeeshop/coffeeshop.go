@@ -20,7 +20,7 @@ type CoffeeShop struct {
 	bchan              chan *Brewer
 	cashRegister       *CashRegister
 	barista            *Barista
-	orderQueue         chan *Order // todo: make this a priority queue
+	orderQueue         *util.PriorityWaitQueue[*Order]
 	brewerDone         chan *Order
 	grinderRefill      chan *Grinder
 	beanTypes          map[model.BeanType]bool
@@ -31,6 +31,7 @@ type CoffeeShop struct {
 const cashRegisterTimeMS int = 200
 
 func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
+
 	cashRegister := NewCashRegister(cashRegisterTimeMS)
 	shop := CoffeeShop{
 		extractionProfiles: NewExtractionProfiles(),
@@ -40,7 +41,7 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 		grinderRefill:      make(chan *Grinder, len(grinders)),
 		brewerDone:         make(chan *Order, len(brewers)),
 		cashRegister:       cashRegister,
-		orderQueue:         make(chan *Order, len(grinders)),
+		orderQueue:         util.NewPriorityWaitQueue[*Order](),
 		orderObserver:      NewOrderObserver(),
 		log:                util.NewLogger("Shop"),
 	}
