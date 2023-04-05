@@ -30,7 +30,7 @@ type CoffeeShop struct {
 
 const cashRegisterTimeMS int = 200
 
-func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
+func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer, baristas int) *CoffeeShop {
 
 	cashRegister := NewCashRegister(cashRegisterTimeMS)
 	shop := CoffeeShop{
@@ -45,6 +45,10 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 		orderObserver:      NewOrderObserver(),
 		log:                util.NewLogger("Shop"),
 	}
+
+	// concurrency := 10
+	// sem := make(chan bool, concurrency)
+
 	shop.barista = NewBarista(&shop) // todo: allow multiple baristas
 
 	// todo build brewers/grinders from config and assign done channels here

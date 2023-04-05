@@ -4,7 +4,6 @@ import (
 	"coffeeshop/pkg/model"
 	"coffeeshop/pkg/util"
 	"fmt"
-	"time"
 )
 
 type Barista struct {
@@ -26,48 +25,59 @@ func (b *Barista) StartWork() {
 
 // the barista work loop
 func (b *Barista) doWork() {
-	loops := 0
-	loopTm := time.Now()
 	for {
-		loops++
-		if time.Now().Sub(loopTm) >= 1000*time.Millisecond {
-			b.log.Infof("poll %d...", loops)
-			loops = 0
-			loopTm = time.Now()
+		b.log.Infof("wait for work...")
+
+		var order *Order
+		var grinder *Grinder
+		ok := false
+
+		select {
+		case order, ok = <-b.shop.cashRegister.GetWaitChan():
+			if ok {
+				b.HandleOrderFromCashRegister(order)
+			}
+		case _, ok = <-b.shop.orderQueue.GetWaitChan():
+			if ok {
+				order, ok = b.shop.orderQueue.Pop()
+				if ok {
+					b.HandleNewOrder(order)
+				}
+			}
+		case _, ok = <-b.shop.brewerDone.GetWaitChan():
+			if ok {
+				order, ok = b.shop.brewerDone.Pop()
+				if ok {
+					b.HandleDoneBrewer(order)
+				}
+			}
+		case grinder, ok = <-b.shop.grinderRefill:
+			if ok {
+				b.HandleGrinderRefill(grinder)
+			}
 		}
-		b.CheckCashRegister()
-		b.CheckDoneBrewers()
-		b.CheckGrinderRefills()
-		b.CheckNewOrders()
 	}
 }
 
-// CheckCashRegister Handle the cash register if a customer is waiting
-func (b *Barista) CheckCashRegister() {
+// HandleOrderFromCashRegister Handle the cash register if a customer is waiting
+func (b *Barista) HandleOrderFromCashRegister(order *Order) {
 	// todo maybe just look at current length of shop's order queue?
-	if b.shop.orderObserver.OrdersInThePipe() >= 4 {
-		return
-	}
+	// if b.shop.orderObserver.OrdersInThePipe() >= 4 {
+	// 	return
+	// }
 
-	order, ok := b.shop.cashRegister.Barista()
-	if !ok {
-		return
-	}
+	// barista is doing work here
+	b.shop.cashRegister.SpendTimeHandlingAnOrder(false)
 
 	beanTypes := model.BeanTypeMap()
 
-	b.log.Infof("got order %v", order)
+	b.log.Infof("took order %v", order)
 	order.Start()
 	if !beanTypes[order.BeanType] {
 		b.log.Infof("bean type unavailable %v", order)
-		order.Complete(&model.Receipt{
-			Coffee: nil,
-			Err:    fmt.Errorf("bean type unavailable %v", order.BeanType),
-		})
+		order.Complete(nil, fmt.Errorf("bean type unavailable %v", order.BeanType))
 		return
 	}
-
-	b.log.Infof("took order %v", order)
 
 	// seeing an available grinder for an order waiting on the counter is
 	// instant... rethink ?
@@ -75,41 +85,30 @@ func (b *Barista) CheckCashRegister() {
 		if grinder, ok := <-b.shop.gchan; ok {
 			order.SetGrinder(grinder)
 			b.shop.orderQueue.Push(order, order.Priority())
+		} else {
+			order.Complete(nil, fmt.Errorf("grinders are closed"))
 		}
 	}(order)
 }
 
 // CheckDoneBrewers does a non-blocking check for done brewers and put back in available queue
-func (b *Barista) CheckDoneBrewers() {
-	order, ok := b.shop.brewerDone.Wait0()
-	if !ok {
-		return
-	}
+func (b *Barista) HandleDoneBrewer(order *Order) {
+	b.log.Infof("brewer done %v", order)
 	coffee := order.brewer.GetCoffee()
 	b.shop.bchan <- order.brewer // put it back
-	order.Complete(&model.Receipt{Coffee: coffee})
+	order.Complete(coffee, nil)
 }
 
-func (b *Barista) CheckGrinderRefills() {
-	select {
-	case grinder, ok := <-b.shop.grinderRefill:
-		if ok {
-			b.log.Infof("grinder refill %v", grinder)
-			grinder.Refill(b.shop.roaster)
-		}
-	default:
-	}
+func (b *Barista) HandleGrinderRefill(grinder *Grinder) {
+	b.log.Infof("grinder refill %v", grinder)
+	grinder.Refill(b.shop.roaster)
 }
 
-// CheckNewOrders look for orders that have been paired with a grinder
-func (b *Barista) CheckNewOrders() {
+// HandleNewOrders handle orders that have been paired with a grinder
+func (b *Barista) HandleNewOrder(order *Order) {
 	shop := b.shop
-	var order *Order
 
-	order, ok := shop.orderQueue.Wait0()
-	if !ok {
-		return
-	}
+	b.log.Infof("grind start %v", order)
 
 	extractionProfile := shop.getExtractionProfile(order.StrengthWanted)
 	beansNeeded := extractionProfile.GramsFromOunces(order.OuncesOfCoffeeWanted)
@@ -122,6 +121,7 @@ func (b *Barista) CheckNewOrders() {
 	}
 	if err != nil {
 		b.log.Infof("grind error: %v", err) // todo: error handling
+		order.Complete(nil, err)
 		return
 	}
 
@@ -129,6 +129,7 @@ func (b *Barista) CheckNewOrders() {
 	brewer, ok := <-shop.bchan
 	if !ok {
 		b.log.Infof("brewers closed") // todo: context shutown system-wide
+		order.Complete(nil, fmt.Errorf("brewers are closed"))
 		return
 	}
 

@@ -31,17 +31,17 @@ func main() {
 	// Some struct types and their functions need to be filled in properly. It may be helpful to finish the
 	// Grinder impl, and then Brewer impl each, and then see how things all fit together inside CoffeeShop afterwards.
 
-	g1 := coffeeshop.NewGrinder(model.Columbian, 5, 100, 100, 50)
-	g2 := coffeeshop.NewGrinder(model.Ethiopian, 3, 100, 100, 50)
-	g3 := coffeeshop.NewGrinder(model.French, 12, 100, 100, 50)
+	g1 := coffeeshop.NewGrinder(model.Columbian, 15, 100, 100, 50)
+	g2 := coffeeshop.NewGrinder(model.Ethiopian, 20, 100, 100, 50)
+	g3 := coffeeshop.NewGrinder(model.French, 25, 100, 100, 50)
 
-	b1 := coffeeshop.NewBrewer(2)
-	b2 := coffeeshop.NewBrewer(5)
+	b1 := coffeeshop.NewBrewer(8)
+	b2 := coffeeshop.NewBrewer(10)
 
-	cs := coffeeshop.NewCoffeeShop([]*coffeeshop.Grinder{g1, g2, g3}, []*coffeeshop.Brewer{b1, b2})
+	cs := coffeeshop.NewCoffeeShop([]*coffeeshop.Grinder{g1, g2, g3}, []*coffeeshop.Brewer{b1, b2}, 1)
 
 	var wg sync.WaitGroup
-	numCustomers := 1
+	numCustomers := 2
 	for i := 0; i < numCustomers; i++ {
 		// in parallel, all at once, make calls to MakeCoffee
 		wg.Add(1)
@@ -51,7 +51,11 @@ func main() {
 			if !ok {
 				log.Infof("order closed")
 			} else {
-				log.Infof("made %v err %v\n", coffee.Coffee, coffee.Err)
+				if coffee.Err != nil {
+					log.Infof("order handling error %v\n", coffee.Err)
+				} else {
+					log.Infof("made %v err %v\n", coffee.Coffee, coffee.Err)
+				}
 			}
 			wg.Done()
 		}()

@@ -22,23 +22,18 @@ func NewCashRegister(orderTimeMS int) *CashRegister {
 // Customer blocks, waiting for a barista
 func (c *CashRegister) Customer(order *Order) {
 	c.pendingOrders <- order
-	c.log.Infof("customer placing order delay %v\n", c.orderDuration)
+	c.SpendTimeHandlingAnOrder(true)
+}
+
+func (c *CashRegister) SpendTimeHandlingAnOrder(asCustomer bool) {
+	if asCustomer {
+		c.log.Infof("customer placing order delay %v\n", c.orderDuration)
+	} else {
+		c.log.Infof("barista taking order delay %v\n", c.orderDuration)
+	}
 	time.Sleep(c.orderDuration)
 }
 
-// Barista doesn't block if there are no orders waiting
-func (c *CashRegister) Barista() (*Order, bool) {
-	// todo: only allow 1 barista per register
-	select {
-	case order, ok := <-c.pendingOrders:
-		if !ok {
-			return nil, ok
-		}
-		c.log.Infof("barista taking order delay %v\n", c.orderDuration)
-		time.Sleep(c.orderDuration)
-		return order, ok
-
-	default:
-		return nil, false
-	}
+func (c *CashRegister) GetWaitChan() <-chan *Order {
+	return c.pendingOrders
 }

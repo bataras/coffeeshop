@@ -62,9 +62,12 @@ func (o *Order) Start() {
 	o.observer.OrderTaken(o)
 }
 
-func (o *Order) Complete(receipt *model.Receipt) {
+func (o *Order) Complete(coffee *model.Coffee, err error) {
 	o.observer.OrderCompleted(o)
-	o.done <- receipt
+	o.done <- &model.Receipt{
+		Coffee: coffee,
+		Err:    err,
+	}
 }
 
 func (o *Order) SetGrinder(grinder *Grinder) {

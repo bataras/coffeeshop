@@ -30,20 +30,20 @@ func (o *OrderObserver) OrdersInThePipe() int {
 	return int(o.ordersInThePipe.Load())
 }
 
-func (o *OrderObserver) OrderTaken(_ *Order) {
+func (o *OrderObserver) OrderTaken(order *Order) {
 	o.ordersInThePipe.Add(1)
-	o.log.Infof("order taken. pipe=%v", o.OrdersInThePipe())
+	o.log.Infof("order taken %v", order)
 }
 
-func (o *OrderObserver) OrderCompleted(_ *Order) {
+func (o *OrderObserver) OrderCompleted(order *Order) {
 	o.ordersInThePipe.Add(-1)
-	o.log.Infof("order complete. pipe=%v", o.OrdersInThePipe())
+	o.log.Infof("order complete %v", order)
 }
 
-func (o *OrderObserver) UsingGrinder(_ *Order) {
-	o.log.Infof("order has grinder. pipe=%v", o.OrdersInThePipe())
+func (o *OrderObserver) UsingGrinder(order *Order) {
+	o.log.Infof("order has grinder %v", order)
 }
 
-func (o *OrderObserver) UsingBrewer(_ *Order) {
-	o.log.Infof("order has brewer. pipe=%v", o.OrdersInThePipe())
+func (o *OrderObserver) UsingBrewer(order *Order) {
+	o.log.Infof("order has brewer %v", order)
 }

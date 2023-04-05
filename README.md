@@ -153,10 +153,8 @@ Order/Grinder Pairing Stage
 Barista Handling Stage
 ----------
 - baristas loop and listen to...
-  - if currently handling an order/grinder job from the previous iteration
-    - the brewer availability queue
-  - otherwise
-    - the order/grinder priority queue
+  - the brewer availability queue
+  - the order/grinder priority queue
   - the grinder hopper refill request queue
   - the customer waiting to order queue
 - if a brewer is done
