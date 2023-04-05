@@ -91,7 +91,7 @@ func (b *Barista) HandleOrderFromCashRegister(order *Order) {
 	}(order)
 }
 
-// CheckDoneBrewers does a non-blocking check for done brewers and put back in available queue
+// HandleDoneBrewer does a non-blocking check for done brewers and put back in available queue
 func (b *Barista) HandleDoneBrewer(order *Order) {
 	b.log.Infof("brewer done %v", order)
 	coffee := order.brewer.GetCoffee()
@@ -101,10 +101,12 @@ func (b *Barista) HandleDoneBrewer(order *Order) {
 
 func (b *Barista) HandleGrinderRefill(grinder *Grinder) {
 	b.log.Infof("grinder refill %v", grinder)
-	grinder.Refill(b.shop.roaster)
+	if err := grinder.Refill(b.shop.roaster); err != nil {
+		b.log.Infof("grinder refill error %v", err)
+	}
 }
 
-// HandleNewOrders handle orders that have been paired with a grinder
+// HandleNewOrder handle orders that have been paired with a grinder
 func (b *Barista) HandleNewOrder(order *Order) {
 	shop := b.shop
 
