@@ -45,7 +45,6 @@ type Order struct {
 	grinder              *Grinder
 	brewer               *Brewer
 	notifyComplete       func()
-	// todo: maybe have a audit/observable mechanism and return the order to the customer instead of the receipt channel
 }
 
 var orderCount atomic.Int32

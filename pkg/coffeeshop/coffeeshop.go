@@ -6,18 +6,10 @@ import (
 )
 
 type CoffeeShop struct {
-	// todo: add baristas and possibly "floor space" to regulate the max # of baristas
-	// that can brew. allow baristas to occasionally go on break and clean tables and empty a full waste hopper
-
-	// todo: add hoppers and a waste bucket/hopper
-	// todo: add multiple bean types (and hoppers)
-
-	// baristas grab jobs: orders, filling hoppers, cleaning tables, taking breaks
-	// baristas grab resources for exclusive use: hoppers, grinders, brewers
 	extractionProfiles IExtractionProfiles
 	roaster            *Roaster
-	gchan              chan *Grinder
-	bchan              chan *Brewer
+	grinders           chan *Grinder
+	brewers            chan *Brewer
 	cashRegister       *CashRegister
 	orderPipeDepth     chan bool
 	orderQueue         *util.PriorityWaitQueue[*Order]
@@ -36,11 +28,11 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer, baristas int) *Coffee
 	shop := CoffeeShop{
 		extractionProfiles: NewExtractionProfiles(),
 		roaster:            NewRoaster(),
-		gchan:              make(chan *Grinder, len(grinders)), // todo: map of grinders
-		bchan:              make(chan *Brewer, len(brewers)),
+		grinders:           make(chan *Grinder, len(grinders)), // todo: map of grinders
+		brewers:            make(chan *Brewer, len(brewers)),
 		grinderRefill:      make(chan *Grinder, len(grinders)),
 		brewerDone:         util.NewPriorityWaitQueue[*Order](),
-		cashRegister:       cashRegister,
+		cashRegister:       cashRegister,                    // todo: more than one cash register
 		orderPipeDepth:     make(chan bool, orderPipeDepth), // back pressure orders
 		orderQueue:         util.NewPriorityWaitQueue[*Order](),
 		log:                util.NewLogger("Shop"),
@@ -48,11 +40,11 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer, baristas int) *Coffee
 
 	// todo build brewers/grinders from config and assign done channels here
 	for _, g := range grinders {
-		shop.gchan <- g
+		shop.grinders <- g
 	}
 
 	for _, b := range brewers {
-		shop.bchan <- b
+		shop.brewers <- b
 	}
 
 	// fire off the baristas
@@ -98,7 +90,6 @@ func (cs *CoffeeShop) getExtractionProfile(strength Strength) IExtractionProfile
 func (cs *CoffeeShop) MakeCoffeeOrg(order Order) Coffee {
 	cs.log.Infof("make order %v", order)
 	// assume that we need 2 grams of beans for 1 ounce of coffee
-	// todo: make configurable
 	gramsNeededPerOunce := 2
 	ungroundBeans := Beans{weightGrams: gramsNeededPerOunce * order.OuncesOfCoffeeWanted}
 	// choose a random grinder and grind the beans

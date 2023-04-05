@@ -11,7 +11,6 @@ import (
 )
 
 func init() {
-	// todo: config logging
 	log.SetOutput(os.Stdout)
 	// log.SetReportCaller(true)
 	log.SetFormatter(&log.TextFormatter{
@@ -20,7 +19,9 @@ func init() {
 	})
 }
 
+// todo: error handling
 // todo: add app config
+// todo: context shutown system-wide
 func main() {
 	log := util.NewLogger("Main")
 	// Premise: we want to model a coffee shop. An order comes in, and then with a limited amount of grinders and

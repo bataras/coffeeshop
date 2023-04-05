@@ -22,10 +22,10 @@ type IRoaster interface {
 	GetBeans(gramsNeeded int, beanType model.BeanType) model.Beans
 }
 
-type IRoasterFunc func(gramsNeeded int) model.Beans
+type IRoasterFunc func(gramsNeeded int, beanType model.BeanType) model.Beans
 
-func (f IRoasterFunc) GetBeans(gramsNeeded int) model.Beans {
-	return f(gramsNeeded)
+func (f IRoasterFunc) GetBeans(gramsNeeded int, beanType model.BeanType) model.Beans {
+	return f(gramsNeeded, beanType)
 }
 
 func NewGrinder(beanType model.BeanType, grindGramsPerSecond,

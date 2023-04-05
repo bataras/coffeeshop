@@ -60,7 +60,7 @@ func (b *Barista) doWork() {
 		case grinder, ok = <-b.shop.grinderRefill:
 			if ok {
 				b.HandleGrinderRefill(grinder)
-				b.shop.gchan <- grinder // put it back in rotation
+				b.shop.grinders <- grinder // put it back in rotation
 			}
 		}
 	}
@@ -68,11 +68,6 @@ func (b *Barista) doWork() {
 
 // HandleOrderFromCashRegister Handle the cash register if a customer is waiting
 func (b *Barista) HandleOrderFromCashRegister(order *Order) {
-	// todo maybe just look at current length of shop's order queue?
-	// if b.shop.orderObserver.OrdersInThePipe() >= 4 {
-	// 	return
-	// }
-
 	// barista is doing work here, talking to the customer
 	b.shop.cashRegister.SpendTimeHandlingAnOrder(false)
 
@@ -88,7 +83,7 @@ func (b *Barista) HandleOrderFromCashRegister(order *Order) {
 
 	// seeing an available grinder for an order waiting on the counter is essentially a signal
 	go func(order *Order) {
-		if grinder, ok := <-b.shop.gchan; ok {
+		if grinder, ok := <-b.shop.grinders; ok {
 			order.SetGrinder(grinder)
 			b.shop.orderQueue.Push(order, order.Priority())
 		} else {
@@ -111,23 +106,23 @@ func (b *Barista) HandleNewOrder(order *Order) {
 	if grinder.ShouldRefill() {
 		shop.grinderRefill <- grinder
 	} else {
-		shop.gchan <- grinder // put it back in rotation
+		shop.grinders <- grinder // put it back in rotation
 	}
 	if err != nil {
-		b.log.Infof("grind error: %v", err) // todo: error handling
+		b.log.Infof("grind error: %v", err)
 		order.Complete(nil, err)
 		return
 	}
 
 	// seeing an available brewer for an order waiting on the counter is essentially a signal
 	go func(order *Order) {
-		if brewer, ok := <-b.shop.bchan; ok {
+		if brewer, ok := <-b.shop.brewers; ok {
 			order.SetBrewer(brewer)
 			brewer.StartBrew(groundBeans, order.OuncesOfCoffeeWanted, func() {
 				shop.brewerDone.Push(order, order.Priority())
 			})
 		} else {
-			b.log.Infof("brewers closed") // todo: context shutown system-wide
+			b.log.Infof("brewers closed")
 			order.Complete(nil, fmt.Errorf("brewers are closed"))
 		}
 	}(order)
@@ -137,7 +132,7 @@ func (b *Barista) HandleNewOrder(order *Order) {
 func (b *Barista) HandleDoneBrewer(order *Order) {
 	b.log.Infof("brewer done %v", order)
 	coffee := order.brewer.GetCoffee()
-	b.shop.bchan <- order.brewer // put it back
+	b.shop.brewers <- order.brewer // put it back
 	order.Complete(coffee, nil)
 }
 

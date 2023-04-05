@@ -70,7 +70,6 @@ Barista
 --------
 - waits for a customer who wants to order
 - takes the order
-- instantly conjures the required amount of beans into existence as needed
 - fills grinders
 - grinds the beans
 - brews the beans

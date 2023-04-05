@@ -11,7 +11,7 @@ func TestGrinder_Refill(t *testing.T) {
 	g := NewGrinder(model.Columbian, 1000, 1000, 100, 50)
 
 	called := 0
-	err := g.Refill(IRoasterFunc(func(gramsNeeded int) model.Beans {
+	err := g.Refill(IRoasterFunc(func(gramsNeeded int, beanType model.BeanType) model.Beans {
 		called++
 		assert.Equal(t, 100, gramsNeeded)
 		return model.Beans{
@@ -22,7 +22,7 @@ func TestGrinder_Refill(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, called)
 
-	err = g.Refill(IRoasterFunc(func(gramsNeeded int) model.Beans {
+	err = g.Refill(IRoasterFunc(func(gramsNeeded int, beanType model.BeanType) model.Beans {
 		called++
 		assert.Equal(t, 66, gramsNeeded)
 		return model.Beans{
@@ -34,7 +34,7 @@ func TestGrinder_Refill(t *testing.T) {
 	assert.Equal(t, 2, called)
 
 	called = 0
-	err = g.Refill(IRoasterFunc(func(gramsNeeded int) model.Beans {
+	err = g.Refill(IRoasterFunc(func(gramsNeeded int, beanType model.BeanType) model.Beans {
 		called++
 		return model.Beans{
 			BeanType:    model.Columbian,
@@ -49,7 +49,7 @@ func TestGrinder_RefillWrongType(t *testing.T) {
 	g := NewGrinder(model.Columbian, 1000, 1000, 100, 50)
 
 	called := 0
-	err := g.Refill(IRoasterFunc(func(gramsNeeded int) model.Beans {
+	err := g.Refill(IRoasterFunc(func(gramsNeeded int, beanType model.BeanType) model.Beans {
 		called++
 		assert.Equal(t, 100, gramsNeeded)
 		return model.Beans{
@@ -66,7 +66,7 @@ func TestGrinder_RefillTime(t *testing.T) {
 
 	tm := time.Now()
 	called := 0
-	err := g.Refill(IRoasterFunc(func(gramsNeeded int) model.Beans {
+	err := g.Refill(IRoasterFunc(func(gramsNeeded int, beanType model.BeanType) model.Beans {
 		called++
 		assert.Equal(t, 100, gramsNeeded)
 		return model.Beans{
@@ -84,7 +84,7 @@ func TestGrinder_Grind(t *testing.T) {
 	g := NewGrinder(model.Columbian, 1000, 1000, 100, 50)
 
 	called := 0
-	beans, err := g.Grind(12, IRoasterFunc(func(gramsNeeded int) model.Beans {
+	beans, err := g.Grind(12, IRoasterFunc(func(gramsNeeded int, beanType model.BeanType) model.Beans {
 		called++
 		assert.Equal(t, 100, gramsNeeded)
 		return model.Beans{
@@ -106,7 +106,7 @@ func TestGrinder_GrindTime(t *testing.T) {
 
 	tm := time.Now()
 	called := 0
-	beans, err := g.Grind(5, IRoasterFunc(func(gramsNeeded int) model.Beans {
+	beans, err := g.Grind(5, IRoasterFunc(func(gramsNeeded int, beanType model.BeanType) model.Beans {
 		called++
 		assert.Equal(t, 100, gramsNeeded)
 		return model.Beans{
@@ -129,7 +129,7 @@ func TestGrinder_GrindNotEnough(t *testing.T) {
 	g := NewGrinder(model.Columbian, 1000, 1000, 100, 50)
 
 	called := 0
-	beans, err := g.Grind(12, IRoasterFunc(func(gramsNeeded int) model.Beans {
+	beans, err := g.Grind(12, IRoasterFunc(func(gramsNeeded int, beanType model.BeanType) model.Beans {
 		called++
 		assert.Equal(t, 100, gramsNeeded)
 		return model.Beans{
@@ -150,7 +150,7 @@ func TestGrinder_GrindWrongBeans(t *testing.T) {
 	g := NewGrinder(model.Columbian, 1000, 1000, 100, 50)
 
 	called := 0
-	beans, err := g.Grind(12, IRoasterFunc(func(gramsNeeded int) model.Beans {
+	beans, err := g.Grind(12, IRoasterFunc(func(gramsNeeded int, beanType model.BeanType) model.Beans {
 		called++
 		assert.Equal(t, 100, gramsNeeded)
 		return model.Beans{

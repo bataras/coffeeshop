@@ -39,5 +39,4 @@ func (b BeanType) String() string {
 type Beans struct {
 	BeanType    BeanType
 	WeightGrams int
-	// indicate some state change? create a new type?
 }
