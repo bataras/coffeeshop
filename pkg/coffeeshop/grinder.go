@@ -22,6 +22,12 @@ type IRoaster interface {
 	GetBeans(gramsNeeded int) model.Beans
 }
 
+type IRoasterFunc func(gramsNeeded int) model.Beans
+
+func (f IRoasterFunc) GetBeans(gramsNeeded int) model.Beans {
+	return f(gramsNeeded)
+}
+
 func NewGrinder(beanType model.BeanType, grindGramsPerSecond,
 	addGramsPerSecond, hopperSize int, refillPercentage int) *Grinder {
 	val := &Grinder{
@@ -39,8 +45,8 @@ func (g *Grinder) BeanType() model.BeanType {
 	return g.beanType
 }
 
-func (g *Grinder) PercentFull() int {
-	return g.hopper.PercentFull()
+func (g *Grinder) ShouldRefill() bool {
+	return g.hopper.PercentFull() < g.refillPercentage
 }
 
 // Refill refills the grinder if it's too low on product. takes time.
@@ -69,7 +75,7 @@ func (g *Grinder) refillInternal(roaster IRoaster) error {
 }
 
 // Grind grinds beans. takes time
-func (g *Grinder) Grind(grams int, refill chan<- *Grinder, roaster IRoaster) (model.Beans, error) {
+func (g *Grinder) Grind(grams int, roaster IRoaster) (model.Beans, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -86,10 +92,6 @@ func (g *Grinder) Grind(grams int, refill chan<- *Grinder, roaster IRoaster) (mo
 		g.hopper.AddBeans(took)
 		// requested grams will never be satisfied...
 		return model.Beans{}, fmt.Errorf("not enough beans. want %v got %v", grams, took)
-	}
-
-	if g.hopper.PercentFull() < g.refillPercentage {
-		refill <- g // Let the baristas know I should be refilled
 	}
 
 	ms := g.grindGramsPerSecond.Duration(grams)

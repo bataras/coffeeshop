@@ -4,6 +4,7 @@ import (
 	"coffeeshop/pkg/model"
 	"coffeeshop/pkg/util"
 	"fmt"
+	"time"
 )
 
 type Barista struct {
@@ -18,21 +19,33 @@ func NewBarista(shop *CoffeeShop) *Barista {
 	}
 }
 
-func (b *Barista) Work() {
+// StartWork start the barista working
+func (b *Barista) StartWork() {
+	go b.doWork()
+}
 
-	go func() {
-		for {
-			b.CheckCashRegister()
-			b.CheckDoneBrewers()
-			b.CheckGrinderRefills()
+// the barista work loop
+func (b *Barista) doWork() {
+	loops := 0
+	loopTm := time.Now()
+	for {
+		loops++
+		if time.Now().Sub(loopTm) >= 1000*time.Millisecond {
+			b.log.Infof("poll %d...", loops)
+			loops = 0
+			loopTm = time.Now()
 		}
-	}()
+		b.CheckCashRegister()
+		b.CheckDoneBrewers()
+		b.CheckGrinderRefills()
+		b.CheckNewOrders()
+	}
 }
 
 // CheckCashRegister Handle the cash register if a customer is waiting
 func (b *Barista) CheckCashRegister() {
 	// todo maybe just look at current length of shop's order queue?
-	if b.shop.orderMiddleware.OrdersInThePipe() >= 4 {
+	if b.shop.orderObserver.OrdersInThePipe() >= 4 {
 		return
 	}
 
@@ -55,16 +68,25 @@ func (b *Barista) CheckCashRegister() {
 	}
 
 	b.log.Infof("took order %v", order)
-	b.shop.orderQueue <- order
+
+	// seeing an available grinder for an order waiting on the counter is
+	// instant... rethink ?
+	go func(order *Order) {
+		if grinder, ok := <-b.shop.gchan; ok {
+			order.SetGrinder(grinder)
+			b.shop.orderQueue <- order
+		}
+	}(order)
 }
 
-// CheckDoneBrewers non-blocking check for done brewers and put back in available queue
+// CheckDoneBrewers does a non-blocking check for done brewers and put back in available queue
 func (b *Barista) CheckDoneBrewers() {
 	select {
-	case brewer, ok := <-b.shop.brewerDone:
+	case order, ok := <-b.shop.brewerDone:
 		if ok {
-			b.log.Infof("brewer done %v", brewer)
-			b.shop.bchan <- brewer // put it back
+			coffee := order.brewer.GetCoffee()
+			b.shop.bchan <- order.brewer // put it back
+			order.Complete(&model.Receipt{Coffee: coffee})
 		}
 	default:
 	}
@@ -79,4 +101,46 @@ func (b *Barista) CheckGrinderRefills() {
 		}
 	default:
 	}
+}
+
+// CheckNewOrders look for orders that have been paired with a grinder
+func (b *Barista) CheckNewOrders() {
+	shop := b.shop
+	var order *Order
+
+	select {
+	case orderItem, ok := <-shop.orderQueue:
+		if !ok {
+			return
+		}
+		order = orderItem
+	default:
+		return
+	}
+
+	extractionProfile := shop.getExtractionProfile(order.StrengthWanted)
+	beansNeeded := extractionProfile.GramsFromOunces(order.OuncesOfCoffeeWanted)
+
+	grinder := order.grinder
+	groundBeans, err := grinder.Grind(beansNeeded, shop.roaster)
+	shop.gchan <- grinder // put it back
+	if grinder.ShouldRefill() {
+		shop.grinderRefill <- grinder
+	}
+	if err != nil {
+		b.log.Infof("grind error: %v", err) // todo: error handling
+		return
+	}
+
+	// wait for a brewer
+	brewer, ok := <-shop.bchan
+	if !ok {
+		b.log.Infof("brewers closed") // todo: context shutown system-wide
+		return
+	}
+
+	order.SetBrewer(brewer)
+	brewer.StartBrew(groundBeans, order.OuncesOfCoffeeWanted, func() {
+		shop.brewerDone <- order
+	})
 }

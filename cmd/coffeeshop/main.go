@@ -31,9 +31,9 @@ func main() {
 	// Some struct types and their functions need to be filled in properly. It may be helpful to finish the
 	// Grinder impl, and then Brewer impl each, and then see how things all fit together inside CoffeeShop afterwards.
 
-	g1 := coffeeshop.NewGrinder(model.Columbian, 5, 5, 100, 50)
-	g2 := coffeeshop.NewGrinder(model.Ethiopian, 3, 5, 100, 50)
-	g3 := coffeeshop.NewGrinder(model.French, 12, 5, 100, 50)
+	g1 := coffeeshop.NewGrinder(model.Columbian, 5, 100, 100, 50)
+	g2 := coffeeshop.NewGrinder(model.Ethiopian, 3, 100, 100, 50)
+	g3 := coffeeshop.NewGrinder(model.French, 12, 100, 100, 50)
 
 	b1 := coffeeshop.NewBrewer(2)
 	b2 := coffeeshop.NewBrewer(5)
@@ -45,7 +45,7 @@ func main() {
 	for i := 0; i < numCustomers; i++ {
 		// in parallel, all at once, make calls to MakeCoffee
 		wg.Add(1)
-		receipt := cs.OrderCoffee(model.Columbian, 12, model.NormalStrength)
+		receipt := cs.OrderCoffee(model.Columbian, 12, coffeeshop.NormalStrength)
 		go func() {
 			coffee, ok := <-receipt
 			if !ok {

@@ -1,11 +1,8 @@
 package coffeeshop
 
 import (
-	"coffeeshop/pkg/middleware"
 	"coffeeshop/pkg/model"
-	"coffeeshop/pkg/queue"
 	"coffeeshop/pkg/util"
-	"fmt"
 )
 
 type CoffeeShop struct {
@@ -21,31 +18,30 @@ type CoffeeShop struct {
 	roaster            *Roaster
 	gchan              chan *Grinder
 	bchan              chan *Brewer
-	cashRegister       *queue.CashRegister
+	cashRegister       *CashRegister
 	barista            *Barista
-	orderQueue         chan *model.Order
-	brewerDone         chan *Brewer
+	orderQueue         chan *Order // todo: make this a priority queue
+	brewerDone         chan *Order
 	grinderRefill      chan *Grinder
 	beanTypes          map[model.BeanType]bool
-	orderMiddleware    *middleware.Orders
+	orderObserver      IOrderObserver
 	log                *util.Logger
 }
 
 const cashRegisterTimeMS int = 200
-const orderQueueSize int = 4
 
 func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
-	cashRegister := queue.NewCashRegister(cashRegisterTimeMS)
+	cashRegister := NewCashRegister(cashRegisterTimeMS)
 	shop := CoffeeShop{
 		extractionProfiles: NewExtractionProfiles(),
 		roaster:            NewRoaster(),
 		gchan:              make(chan *Grinder, len(grinders)),
 		bchan:              make(chan *Brewer, len(brewers)),
 		grinderRefill:      make(chan *Grinder, len(grinders)),
-		brewerDone:         make(chan *Brewer, len(brewers)),
+		brewerDone:         make(chan *Order, len(brewers)),
 		cashRegister:       cashRegister,
-		orderQueue:         make(chan *model.Order, orderQueueSize),
-		orderMiddleware:    middleware.NewOrders(),
+		orderQueue:         make(chan *Order, len(grinders)),
+		orderObserver:      NewOrderObserver(),
 		log:                util.NewLogger("Shop"),
 	}
 	shop.barista = NewBarista(&shop) // todo: allow multiple baristas
@@ -59,70 +55,33 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 		shop.bchan <- b
 	}
 
-	shop.barista.Work()
+	shop.barista.StartWork()
 
 	return &shop
 }
 
 // OrderCoffee fires off an order and returns a channel for the customer to wait on
-func (cs *CoffeeShop) OrderCoffee(beanType model.BeanType, ounces int, strength model.Strength) <-chan *model.Receipt {
+func (cs *CoffeeShop) OrderCoffee(beanType model.BeanType, ounces int, strength Strength) <-chan *model.Receipt {
 	rsp := make(chan *model.Receipt)
-	order := model.NewOrder(rsp, cs.orderMiddleware)
+	order := NewOrder(rsp, cs.orderObserver)
 	order.BeanType = beanType
 	order.OuncesOfCoffeeWanted = ounces
 	order.StrengthWanted = strength
 
 	cs.cashRegister.Customer(order)
 
-	go func(order *model.Order) {
-		coffee, err := cs.makeCoffee(order)
-		rsp <- &model.Receipt{
-			Coffee: coffee,
-			Err:    err,
-		}
-	}(order)
-
 	return rsp
 }
 
-// do the work (for now)
-func (cs *CoffeeShop) makeCoffee(order *model.Order) (*model.Coffee, error) {
-	cs.log.Infof("make order %v\n", order)
-
-	extractionProfile := cs.getExtractionProfile(order.StrengthWanted)
-	beansNeeded := extractionProfile.GramsFromOunces(order.OuncesOfCoffeeWanted)
-
-	// wait for a grinder
-	grinder, ok := <-cs.gchan
-	if !ok {
-		return nil, fmt.Errorf("closed")
-	}
-
-	groundBeans, _ := grinder.Grind(beansNeeded, cs.grinderRefill, cs.roaster)
-	cs.gchan <- grinder // put it back
-
-	// wait for a brewer
-	brewer, ok := <-cs.bchan
-	if !ok {
-		return nil, fmt.Errorf("closed")
-	}
-
-	brewer.Brew(groundBeans, order.OuncesOfCoffeeWanted, cs.brewerDone)
-	brewer = <-cs.brewerDone
-	coffee := brewer.GetCoffee()
-	cs.bchan <- brewer // put it back
-	return coffee, nil
-}
-
-func (cs *CoffeeShop) getExtractionProfile(strength model.Strength) IExtractionProfile {
+func (cs *CoffeeShop) getExtractionProfile(strength Strength) IExtractionProfile {
 	switch strength {
 	default:
 		fallthrough
-	case model.NormalStrength:
+	case NormalStrength:
 		return cs.extractionProfiles.GetProfile(Normal)
-	case model.MediumStrength:
+	case MediumStrength:
 		return cs.extractionProfiles.GetProfile(Medium)
-	case model.LightStrength:
+	case LightStrength:
 		return cs.extractionProfiles.GetProfile(Light)
 	}
 }
@@ -142,6 +101,6 @@ func (cs *CoffeeShop) MakeCoffeeOrg(order Order) Coffee {
 	// grinders and brewers can be busy!
 
 	brewerIdx := rand.Intn(len(cs.brewers))
-	return cs.brewers[brewerIdx].Brew(groundBeans, order.OuncesOfCoffeeWanted)
+	return cs.brewers[brewerIdx].StartBrew(groundBeans, order.OuncesOfCoffeeWanted)
 }
 */

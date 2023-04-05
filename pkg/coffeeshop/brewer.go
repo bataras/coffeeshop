@@ -21,8 +21,9 @@ func NewBrewer(ouncesPerSecond int) *Brewer {
 	return val
 }
 
-// Brew todo: possibly interact with Beans
-func (b *Brewer) Brew(beans model.Beans, ounces int, done chan<- *Brewer) {
+// StartBrew todo: possibly interact with Beans
+// todo use single method imterface for done
+func (b *Brewer) StartBrew(beans model.Beans, ounces int, whenDone func()) {
 	// assume we need 6 ounces of water for every 12 grams of beans
 	// how long should it take this function to complete?
 	// i.e. time.Sleep(YYY)
@@ -32,7 +33,9 @@ func (b *Brewer) Brew(beans model.Beans, ounces int, done chan<- *Brewer) {
 		b.log.Infof("brew beans %v ounces %v ms %v\n", beans, ounces, ms.Milliseconds())
 		time.Sleep(ms)
 		b.coffee = model.NewCoffee(beans.BeanType, ounces)
-		done <- b // put myself on the done queue
+		if whenDone != nil {
+			whenDone() // let the caller do something later
+		}
 	}()
 }
 
