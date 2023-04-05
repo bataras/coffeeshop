@@ -19,7 +19,7 @@ type Grinder struct {
 }
 
 type IRoaster interface {
-	GetBeans(gramsNeeded int) model.Beans
+	GetBeans(gramsNeeded int, beanType model.BeanType) model.Beans
 }
 
 type IRoasterFunc func(gramsNeeded int) model.Beans
@@ -41,6 +41,10 @@ func NewGrinder(beanType model.BeanType, grindGramsPerSecond,
 	return val
 }
 
+func (g *Grinder) String() string {
+	return fmt.Sprintf("bean: %v hopper %v %v", g.beanType, g.hopper.Count(), g.hopper.PercentFull())
+}
+
 func (g *Grinder) BeanType() model.BeanType {
 	return g.beanType
 }
@@ -59,18 +63,21 @@ func (g *Grinder) Refill(f IRoaster) error {
 
 // do the actual refill. call when locked
 func (g *Grinder) refillInternal(roaster IRoaster) error {
-	if g.hopper.PercentFull() < g.refillPercentage {
-		beans := roaster.GetBeans(g.hopper.SpaceAvailable())
-		if beans.BeanType != g.BeanType() {
-			return fmt.Errorf("tried to refill with wrong beantype")
-		}
-
-		g.hopper.AddBeans(beans.WeightGrams)
-
-		ms := g.addGramsPerSecond.Duration(beans.WeightGrams)
-		g.log.Infof("add beans %v ms %v\n", beans, ms.Milliseconds())
-		time.Sleep(ms)
+	if g.hopper.PercentFull() >= g.refillPercentage {
+		g.log.Infof("refill not necessary")
+		return nil
 	}
+
+	beans := roaster.GetBeans(g.hopper.SpaceAvailable(), g.beanType)
+	if beans.BeanType != g.BeanType() {
+		return fmt.Errorf("tried to refill with wrong beantype")
+	}
+
+	g.hopper.AddBeans(beans.WeightGrams)
+
+	ms := g.addGramsPerSecond.Duration(beans.WeightGrams)
+	g.log.Infof("add beans %v ms %v", beans, ms.Milliseconds())
+	time.Sleep(ms)
 	return nil
 }
 
@@ -95,7 +102,7 @@ func (g *Grinder) Grind(grams int, roaster IRoaster) (model.Beans, error) {
 	}
 
 	ms := g.grindGramsPerSecond.Duration(grams)
-	g.log.Infof("grind beans %v ms %v\n", grams, ms.Milliseconds())
+	g.log.Infof("grind beans %v ms %v", grams, ms.Milliseconds())
 	time.Sleep(ms)
 	return model.Beans{WeightGrams: grams}, nil
 }

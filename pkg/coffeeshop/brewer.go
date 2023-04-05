@@ -30,7 +30,7 @@ func (b *Brewer) StartBrew(beans model.Beans, ounces int, whenDone func()) {
 
 	go func() {
 		ms := b.ouncesPerSecond.Duration(ounces)
-		b.log.Infof("brew beans %v ounces %v ms %v\n", beans, ounces, ms.Milliseconds())
+		b.log.Infof("brew beans %v ounces %v ms %v", beans, ounces, ms.Milliseconds())
 		time.Sleep(ms)
 		b.coffee = model.NewCoffee(beans.BeanType, ounces)
 		if whenDone != nil {

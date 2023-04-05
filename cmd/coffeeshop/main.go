@@ -38,27 +38,31 @@ func main() {
 	b1 := coffeeshop.NewBrewer(8)
 	b2 := coffeeshop.NewBrewer(10)
 
-	cs := coffeeshop.NewCoffeeShop([]*coffeeshop.Grinder{g1, g2, g3}, []*coffeeshop.Brewer{b1, b2}, 1)
+	cs := coffeeshop.NewCoffeeShop([]*coffeeshop.Grinder{g1, g2, g3}, []*coffeeshop.Brewer{b1, b2}, 50)
 
 	var wg sync.WaitGroup
-	numCustomers := 2
-	for i := 0; i < numCustomers; i++ {
-		// in parallel, all at once, make calls to MakeCoffee
-		wg.Add(1)
+	doOrder := func(bean model.BeanType, ounces int, strength coffeeshop.Strength) {
 		receipt := cs.OrderCoffee(model.Columbian, 12, coffeeshop.NormalStrength)
+		wg.Add(1)
 		go func() {
 			coffee, ok := <-receipt
 			if !ok {
 				log.Infof("order closed")
 			} else {
 				if coffee.Err != nil {
-					log.Infof("order handling error %v\n", coffee.Err)
+					log.Infof("order handling error %v", coffee.Err)
 				} else {
-					log.Infof("made %v err %v\n", coffee.Coffee, coffee.Err)
+					log.Infof("made %v", coffee.Coffee)
 				}
 			}
 			wg.Done()
 		}()
+	}
+	numCustomers := 50
+	for i := 0; i < numCustomers; i++ {
+		// in parallel, all at once, make calls to MakeCoffee
+		doOrder(model.Columbian, 12, coffeeshop.NormalStrength)
+		doOrder(model.French, 8, coffeeshop.MediumStrength)
 	}
 	wg.Wait()
 

@@ -27,25 +27,35 @@ func (s Strength) String() string {
 	}
 }
 
+type OrderState int
+
+const (
+	NeedsGrinder OrderState = iota
+	ReadyToBrew
+	Completed
+)
+
 type Order struct {
 	OrderNumber          int // Incrementing
 	BeanType             model.BeanType
 	OuncesOfCoffeeWanted int
 	StrengthWanted       Strength
+	State                OrderState
 	done                 chan<- *model.Receipt
-	observer             IOrderObserver
 	grinder              *Grinder
 	brewer               *Brewer
+	notifyComplete       func()
 	// todo: maybe have a audit/observable mechanism and return the order to the customer instead of the receipt channel
 }
 
 var orderCount atomic.Int32
 
-func NewOrder(receipts chan<- *model.Receipt, orderMiddleware IOrderObserver) *Order {
+func NewOrder(receipts chan<- *model.Receipt, notifyComplete func()) *Order {
 	return &Order{
-		OrderNumber: int(orderCount.Add(1)),
-		done:        receipts,
-		observer:    orderMiddleware,
+		OrderNumber:    int(orderCount.Add(1)),
+		State:          NeedsGrinder,
+		done:           receipts,
+		notifyComplete: notifyComplete,
 	}
 }
 
@@ -54,28 +64,27 @@ func (o *Order) Priority() int {
 }
 
 func (o *Order) String() string {
-	return fmt.Sprintf("No: %d Beans: %v Ounces: %d Strength: %v",
+	return fmt.Sprintf("Order#: %d Beans: %v Ounces: %d Strength: %v",
 		o.OrderNumber, o.BeanType, o.OuncesOfCoffeeWanted, o.StrengthWanted)
 }
 
 func (o *Order) Start() {
-	o.observer.OrderTaken(o)
 }
 
 func (o *Order) Complete(coffee *model.Coffee, err error) {
-	o.observer.OrderCompleted(o)
 	o.done <- &model.Receipt{
 		Coffee: coffee,
 		Err:    err,
+	}
+	if o.notifyComplete != nil {
+		o.notifyComplete()
 	}
 }
 
 func (o *Order) SetGrinder(grinder *Grinder) {
 	o.grinder = grinder
-	o.observer.UsingGrinder(o)
 }
 
 func (o *Order) SetBrewer(brewer *Brewer) {
 	o.brewer = brewer
-	o.observer.UsingBrewer(o)
 }

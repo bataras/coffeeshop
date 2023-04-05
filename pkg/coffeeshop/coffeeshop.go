@@ -19,12 +19,11 @@ type CoffeeShop struct {
 	gchan              chan *Grinder
 	bchan              chan *Brewer
 	cashRegister       *CashRegister
-	barista            *Barista
+	orderPipeDepth     chan bool
 	orderQueue         *util.PriorityWaitQueue[*Order]
 	brewerDone         *util.PriorityWaitQueue[*Order]
 	grinderRefill      chan *Grinder
 	beanTypes          map[model.BeanType]bool
-	orderObserver      IOrderObserver
 	log                *util.Logger
 }
 
@@ -33,23 +32,19 @@ const cashRegisterTimeMS int = 200
 func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer, baristas int) *CoffeeShop {
 
 	cashRegister := NewCashRegister(cashRegisterTimeMS)
+	orderPipeDepth := len(grinders) + len(brewers) + 2 // max orders being handled in the shop
 	shop := CoffeeShop{
 		extractionProfiles: NewExtractionProfiles(),
 		roaster:            NewRoaster(),
-		gchan:              make(chan *Grinder, len(grinders)),
+		gchan:              make(chan *Grinder, len(grinders)), // todo: map of grinders
 		bchan:              make(chan *Brewer, len(brewers)),
 		grinderRefill:      make(chan *Grinder, len(grinders)),
 		brewerDone:         util.NewPriorityWaitQueue[*Order](),
 		cashRegister:       cashRegister,
+		orderPipeDepth:     make(chan bool, orderPipeDepth), // back pressure orders
 		orderQueue:         util.NewPriorityWaitQueue[*Order](),
-		orderObserver:      NewOrderObserver(),
 		log:                util.NewLogger("Shop"),
 	}
-
-	// concurrency := 10
-	// sem := make(chan bool, concurrency)
-
-	shop.barista = NewBarista(&shop) // todo: allow multiple baristas
 
 	// todo build brewers/grinders from config and assign done channels here
 	for _, g := range grinders {
@@ -60,15 +55,23 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer, baristas int) *Coffee
 		shop.bchan <- b
 	}
 
-	shop.barista.StartWork()
+	// fire off the baristas
+	for i := 0; i < baristas; i++ {
+		barista := NewBarista(&shop)
+		barista.StartWork()
+	}
 
 	return &shop
 }
 
 // OrderCoffee fires off an order and returns a channel for the customer to wait on
 func (cs *CoffeeShop) OrderCoffee(beanType model.BeanType, ounces int, strength Strength) <-chan *model.Receipt {
+	cs.orderPipeDepth <- true
+
 	rsp := make(chan *model.Receipt)
-	order := NewOrder(rsp, cs.orderObserver)
+	order := NewOrder(rsp, func() {
+		<-cs.orderPipeDepth
+	})
 	order.BeanType = beanType
 	order.OuncesOfCoffeeWanted = ounces
 	order.StrengthWanted = strength
@@ -93,7 +96,7 @@ func (cs *CoffeeShop) getExtractionProfile(strength Strength) IExtractionProfile
 
 /*
 func (cs *CoffeeShop) MakeCoffeeOrg(order Order) Coffee {
-	cs.log.Infof("make order %v\n", order)
+	cs.log.Infof("make order %v", order)
 	// assume that we need 2 grams of beans for 1 ounce of coffee
 	// todo: make configurable
 	gramsNeededPerOunce := 2

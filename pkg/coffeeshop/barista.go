@@ -4,17 +4,23 @@ import (
 	"coffeeshop/pkg/model"
 	"coffeeshop/pkg/util"
 	"fmt"
+	"sync/atomic"
 )
 
 type Barista struct {
+	id   int
 	shop *CoffeeShop
 	log  *util.Logger
 }
 
+var baristaCount atomic.Int32
+
 func NewBarista(shop *CoffeeShop) *Barista {
+	id := int(baristaCount.Add(1))
 	return &Barista{
+		id:   id,
 		shop: shop,
-		log:  util.NewLogger("Barista"),
+		log:  util.NewLogger(fmt.Sprintf("Barista %v", id)),
 	}
 }
 
@@ -26,15 +32,15 @@ func (b *Barista) StartWork() {
 // the barista work loop
 func (b *Barista) doWork() {
 	for {
-		b.log.Infof("wait for work...")
+		// b.log.Infof("wait for work...")
 
 		var order *Order
 		var grinder *Grinder
 		ok := false
-
 		select {
 		case order, ok = <-b.shop.cashRegister.GetWaitChan():
 			if ok {
+				b.log.Infof("handle cash register with %d orders in the pipe", len(b.shop.orderPipeDepth))
 				b.HandleOrderFromCashRegister(order)
 			}
 		case _, ok = <-b.shop.orderQueue.GetWaitChan():
@@ -54,6 +60,7 @@ func (b *Barista) doWork() {
 		case grinder, ok = <-b.shop.grinderRefill:
 			if ok {
 				b.HandleGrinderRefill(grinder)
+				b.shop.gchan <- grinder // put it back in rotation
 			}
 		}
 	}
@@ -66,7 +73,7 @@ func (b *Barista) HandleOrderFromCashRegister(order *Order) {
 	// 	return
 	// }
 
-	// barista is doing work here
+	// barista is doing work here, talking to the customer
 	b.shop.cashRegister.SpendTimeHandlingAnOrder(false)
 
 	beanTypes := model.BeanTypeMap()
@@ -79,14 +86,49 @@ func (b *Barista) HandleOrderFromCashRegister(order *Order) {
 		return
 	}
 
-	// seeing an available grinder for an order waiting on the counter is
-	// instant... rethink ?
+	// seeing an available grinder for an order waiting on the counter is essentially a signal
 	go func(order *Order) {
 		if grinder, ok := <-b.shop.gchan; ok {
 			order.SetGrinder(grinder)
 			b.shop.orderQueue.Push(order, order.Priority())
 		} else {
 			order.Complete(nil, fmt.Errorf("grinders are closed"))
+		}
+	}(order)
+}
+
+// HandleNewOrder handle orders that have been paired with a grinder
+func (b *Barista) HandleNewOrder(order *Order) {
+	shop := b.shop
+
+	b.log.Infof("grind start %v", order)
+
+	extractionProfile := shop.getExtractionProfile(order.StrengthWanted)
+	beansNeeded := extractionProfile.GramsFromOunces(order.OuncesOfCoffeeWanted)
+
+	grinder := order.grinder
+	groundBeans, err := grinder.Grind(beansNeeded, shop.roaster)
+	if grinder.ShouldRefill() {
+		shop.grinderRefill <- grinder
+	} else {
+		shop.gchan <- grinder // put it back in rotation
+	}
+	if err != nil {
+		b.log.Infof("grind error: %v", err) // todo: error handling
+		order.Complete(nil, err)
+		return
+	}
+
+	// seeing an available brewer for an order waiting on the counter is essentially a signal
+	go func(order *Order) {
+		if brewer, ok := <-b.shop.bchan; ok {
+			order.SetBrewer(brewer)
+			brewer.StartBrew(groundBeans, order.OuncesOfCoffeeWanted, func() {
+				shop.brewerDone.Push(order, order.Priority())
+			})
+		} else {
+			b.log.Infof("brewers closed") // todo: context shutown system-wide
+			order.Complete(nil, fmt.Errorf("brewers are closed"))
 		}
 	}(order)
 }
@@ -104,39 +146,4 @@ func (b *Barista) HandleGrinderRefill(grinder *Grinder) {
 	if err := grinder.Refill(b.shop.roaster); err != nil {
 		b.log.Infof("grinder refill error %v", err)
 	}
-}
-
-// HandleNewOrder handle orders that have been paired with a grinder
-func (b *Barista) HandleNewOrder(order *Order) {
-	shop := b.shop
-
-	b.log.Infof("grind start %v", order)
-
-	extractionProfile := shop.getExtractionProfile(order.StrengthWanted)
-	beansNeeded := extractionProfile.GramsFromOunces(order.OuncesOfCoffeeWanted)
-
-	grinder := order.grinder
-	groundBeans, err := grinder.Grind(beansNeeded, shop.roaster)
-	shop.gchan <- grinder // put it back
-	if grinder.ShouldRefill() {
-		shop.grinderRefill <- grinder
-	}
-	if err != nil {
-		b.log.Infof("grind error: %v", err) // todo: error handling
-		order.Complete(nil, err)
-		return
-	}
-
-	// wait for a brewer
-	brewer, ok := <-shop.bchan
-	if !ok {
-		b.log.Infof("brewers closed") // todo: context shutown system-wide
-		order.Complete(nil, fmt.Errorf("brewers are closed"))
-		return
-	}
-
-	order.SetBrewer(brewer)
-	brewer.StartBrew(groundBeans, order.OuncesOfCoffeeWanted, func() {
-		shop.brewerDone.Push(order, order.Priority())
-	})
 }
