@@ -10,9 +10,14 @@ type Logger struct {
 }
 
 func NewLogger(prefix string) *Logger {
+	log := logrus.New()
+	log.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp:   true,
+		TimestampFormat: "15:04:05.99999",
+	})
 	return &Logger{
 		prefix: prefix + ": ",
-		log:    logrus.New(),
+		log:    log,
 	}
 }
 
