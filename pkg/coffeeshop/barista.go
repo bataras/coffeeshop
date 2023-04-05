@@ -74,22 +74,20 @@ func (b *Barista) CheckCashRegister() {
 	go func(order *Order) {
 		if grinder, ok := <-b.shop.gchan; ok {
 			order.SetGrinder(grinder)
-			b.shop.orderQueue.Push(order, -order.OrderNumber) // older orders are higher priority
+			b.shop.orderQueue.Push(order, order.Priority())
 		}
 	}(order)
 }
 
 // CheckDoneBrewers does a non-blocking check for done brewers and put back in available queue
 func (b *Barista) CheckDoneBrewers() {
-	select {
-	case order, ok := <-b.shop.brewerDone:
-		if ok {
-			coffee := order.brewer.GetCoffee()
-			b.shop.bchan <- order.brewer // put it back
-			order.Complete(&model.Receipt{Coffee: coffee})
-		}
-	default:
+	order, ok := b.shop.brewerDone.Wait0()
+	if !ok {
+		return
 	}
+	coffee := order.brewer.GetCoffee()
+	b.shop.bchan <- order.brewer // put it back
+	order.Complete(&model.Receipt{Coffee: coffee})
 }
 
 func (b *Barista) CheckGrinderRefills() {
@@ -136,6 +134,6 @@ func (b *Barista) CheckNewOrders() {
 
 	order.SetBrewer(brewer)
 	brewer.StartBrew(groundBeans, order.OuncesOfCoffeeWanted, func() {
-		shop.brewerDone <- order
+		shop.brewerDone.Push(order, order.Priority())
 	})
 }

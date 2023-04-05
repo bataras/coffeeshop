@@ -21,7 +21,7 @@ type CoffeeShop struct {
 	cashRegister       *CashRegister
 	barista            *Barista
 	orderQueue         *util.PriorityWaitQueue[*Order]
-	brewerDone         chan *Order
+	brewerDone         *util.PriorityWaitQueue[*Order]
 	grinderRefill      chan *Grinder
 	beanTypes          map[model.BeanType]bool
 	orderObserver      IOrderObserver
@@ -39,7 +39,7 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer) *CoffeeShop {
 		gchan:              make(chan *Grinder, len(grinders)),
 		bchan:              make(chan *Brewer, len(brewers)),
 		grinderRefill:      make(chan *Grinder, len(grinders)),
-		brewerDone:         make(chan *Order, len(brewers)),
+		brewerDone:         util.NewPriorityWaitQueue[*Order](),
 		cashRegister:       cashRegister,
 		orderQueue:         util.NewPriorityWaitQueue[*Order](),
 		orderObserver:      NewOrderObserver(),

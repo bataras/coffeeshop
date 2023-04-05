@@ -49,6 +49,10 @@ func NewOrder(receipts chan<- *model.Receipt, orderMiddleware IOrderObserver) *O
 	}
 }
 
+func (o *Order) Priority() int {
+	return -o.OrderNumber // older orders are higher priority
+}
+
 func (o *Order) String() string {
 	return fmt.Sprintf("No: %d Beans: %v Ounces: %d Strength: %v",
 		o.OrderNumber, o.BeanType, o.OuncesOfCoffeeWanted, o.StrengthWanted)
