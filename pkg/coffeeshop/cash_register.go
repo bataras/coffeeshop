@@ -32,6 +32,7 @@ func (c *CashRegister) Customer(order *Order) {
 // only 1 barista at a time can be at the register
 func (c *CashRegister) Barista(timeoutMs int) (*Order, bool) {
 	// only 1 barista at a time can be at the register
+	// todo: multiple baristas (ie 2 registers)
 	if c.baristaCount.Add(1) > 2 {
 		c.baristaCount.Add(-1)
 		return nil, true
