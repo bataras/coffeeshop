@@ -40,7 +40,7 @@ type Order struct {
 	BeanType             model.BeanType
 	OuncesOfCoffeeWanted int
 	StrengthWanted       Strength
-	State                OrderState
+	State                OrderState // todo remove order state or use it with a single order queue
 	done                 chan<- *model.Receipt
 	grinder              *Grinder
 	brewer               *Brewer
