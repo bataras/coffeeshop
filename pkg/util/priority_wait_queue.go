@@ -5,6 +5,10 @@ import (
 	"sync"
 )
 
+// PriorityWaitQueue wraps the official GO PriorityQueue example
+// with a semaphore-like construct and a generic implementation
+// There's a lot of open source variations on the theme, but none
+// provided what this does
 type PriorityWaitQueue[T any] struct {
 	mu       sync.Mutex
 	pq       PriorityQueue[T]

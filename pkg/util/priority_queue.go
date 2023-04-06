@@ -1,5 +1,6 @@
 package util
 
+// This is the the official GO PriorityQueue example made generic
 import (
 	"container/heap"
 	"fmt"

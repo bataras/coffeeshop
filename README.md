@@ -78,6 +78,12 @@ There can be much more metrics gathering; like how busy each barista, grinder an
 Primary Entities and Resources
 =========
 
+Sketches. Stuff changed after these. But it shows early thoughts.
+
+[Early sketch 1](sketch-1.jpg)
+
+[Early sketch 2](sketch-2.jpg)
+
 Beans
 --------
 - has a type (Columbian, Ethiopian, French, Italian, etc)
@@ -104,6 +110,7 @@ Brewer
 - can only be used by one barista at a time
 - never has to be cleaned or breaks down
 - because brewing can be slow, baristas can do other things while waiting
+  - barista A can start brewing, then take a customer's order while barista B fulfills A's order
 
 Customer
 --------
@@ -129,6 +136,10 @@ Barista
   - including completing another barista's order when it's done brewing
 - can start and manage multiple brewers in parallel as load/resources demand
 - the model is adaptable to later add behaviors like taking breaks, cleaning, leveling up on skills, etc
+
+Cash Register
+--------
+- a construct where a customer and a barista meet and take a little time to create an order and put in in the queue
 
 Order
 ------
@@ -162,10 +173,15 @@ Operational Ideals
   - example: it's better to refill grinder hoppers without adding to the customer wait time. ie, when both the grinder and a barista are idle
 - a barista should not dequeue an order in isolation and then wait for the corresponding grinder to be available
   - there may be a subsequent order that can be processed instead of waiting for a grinder for the prior order
-  - this implies an order/grinder pairing stage ensuring that a barista doesn't work on an order until there is a grinder for it
+- baristas fundamentally start processes and then wait for them to complete (eg a brewer)
+  - baristas time-slice across customers and resources in the coffee shop
+    - for example A can start brewing, then take a waiting customer X's order while barista B fulfills A's order after grinding beans for customer Y
 
 Operational Metrics
 ---------
+Ran out of time to add these. But it would be fairly straight forward given the code design.
+Was fantasizing about docker composing a Prometheus and Grafana system to show graphs.
+
 - Customer satisfaction APDEX score
 - avg barista idle time
 - grinder idle times
@@ -179,17 +195,16 @@ Order Processing Pipeline
 Resource Pools
 -------
 - one availability pool for each bean type specific hopper/grinder
-- one availability pool the brewers
+- one availability pool for the brewers
 
 Processing Queues
 -------
-- one customer waiting to order queue
-- one order queue
+- one customer waiting to order mechanism (cash register)
+- one order priority queue by order time
 - one queue for grinder hopper refill requests (pointer to the grinder)
-  - lower priority than orders, or higher ?
-- ephemeral resource-affinity queues for matching orders with grinders
+- one availability queue for grinders based on the bean type they hold
 - one priority queue for each paired order/grinder. priority by order time
-- one queue for brewer machines are done brewing
+- one queue for brewer machines that are done brewing
 
 Order/Grinder Pairing
 ----------
@@ -197,7 +212,7 @@ Order/Grinder Pairing
   - newer orders can potentially process before older ones depending on grinder/bean availability
 - forwards matched pairs to the order/grinder priority queue based on order age
 
-Barista Handling Stage
+Barista Handling Logic
 ----------
 - baristas loop and listen to...
   - the brewer availability queue
@@ -213,14 +228,14 @@ Barista Handling Stage
 - if a grinder hopper needs to be refilled
   - refill the hopper unless another barista got to it first (including one who is using it for an order)
   - this provides an opportunity for hopper refills to not cause a longer wait for a customer. but not guaranteed
-- if an order/grinder pair from the Pairing Stage is available
+- if an order/grinder pair is available
   - fill the grinder hopper if needed
   - grind the beans
   - if the hopper is X% empty, send a refill request to the grinder hopper refill request queue
   - return the grinder to the availability pool
-  - wait for a brewer to be available
+  - wait for a brewer to be available (a signal)
   - start the brewer
-    - have the brewer add itself to the brewer done queue when it's done. use a closure probably
+    - have the brewer add itself to the brewer done queue when it's done
 - loop forever
 
 
@@ -239,8 +254,8 @@ General approach...
   - obvious errors (I've seen this)
   - is it trying to do too much, overkill
 - Future proof-y
-  - is the work being done a POC
+  - is the work being done as POC
   - does the library's interface appear to be generalized and abstracted enough to reasonably extensible
   - does it feel too tightly coupled for the usage model
-  - on the other hand, sometimes it's ok to knowingly adopt something that you can grow with longer term
+  - on the other hand, sometimes it's ok to knowingly adopt something with which you can grow longer term
   - balancing tech debt
