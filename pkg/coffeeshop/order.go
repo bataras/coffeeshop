@@ -39,6 +39,8 @@ const (
 	Completed
 )
 
+type OrderDoneCB func()
+
 type Order struct {
 	OrderNumber          int // Incrementing
 	BeanType             string
@@ -53,7 +55,7 @@ type Order struct {
 
 var orderCount atomic.Int32
 
-func NewOrder(receipts chan<- *model.Receipt, notifyComplete func()) *Order {
+func NewOrder(receipts chan<- *model.Receipt, notifyComplete OrderDoneCB) *Order {
 	return &Order{
 		OrderNumber:    int(orderCount.Add(1)),
 		State:          NeedsGrinder,

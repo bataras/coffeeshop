@@ -21,7 +21,6 @@ func init() {
 }
 
 // todo: error handling
-// todo: add app config
 // todo: context shutown system-wide
 func main() {
 	log := util.NewLogger("Main")

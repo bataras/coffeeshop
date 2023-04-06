@@ -35,7 +35,8 @@ func (b *Barista) doWork() {
 
 		var order *Order
 		var grinder *Grinder
-		ok := false
+		var ok bool
+
 		select {
 		case order, ok = <-b.shop.cashRegister.GetWaitChan():
 			if ok {

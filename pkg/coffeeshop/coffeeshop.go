@@ -62,7 +62,7 @@ func NewCoffeeShop(cfg *config.Config) *CoffeeShop {
 func (cs *CoffeeShop) OrderCoffee(beanType string, ounces int, strength Strength) <-chan *model.Receipt {
 	cs.orderPipeDepth <- true
 
-	rsp := make(chan *model.Receipt)
+	rsp := make(chan *model.Receipt, 1) // cap 1: pushing the receipt should not block the barista
 	order := NewOrder(rsp, func() {
 		<-cs.orderPipeDepth
 	})
