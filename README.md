@@ -91,6 +91,13 @@ Beans
 - there is an endless supply of them
 - the model is adaptable to later add a "Roaster" from which the coffee shop orders more beans
 
+Extraction Profiles
+--------
+- matches an ExtractionStrength to a grams-per-ounce conversion
+- could be updated to to do things like grinder settings: drip, espresso, etc
+- a real coffee shop will occasionally adjust extraction profiles during the day based on humidity, etc.
+  - but for POC all we do is convert strength to grams/ounce
+
 Grinder
 --------
 - has a hopper filled with a single type of beans
