@@ -68,8 +68,9 @@ func (o *Order) Start() {
 
 func (o *Order) Complete(coffee *model.Coffee, err error) {
 	o.done <- &model.Receipt{
-		Coffee: coffee,
-		Err:    err,
+		OrderNumber: o.OrderNumber,
+		Coffee:      coffee,
+		Err:         err,
 	}
 	if o.notifyComplete != nil {
 		o.notifyComplete()

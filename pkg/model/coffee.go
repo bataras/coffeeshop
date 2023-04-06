@@ -15,7 +15,7 @@ func NewCoffee(beanType string, ounces int) *Coffee {
 }
 
 func (c *Coffee) String() string {
-	return fmt.Sprintf("{%v %v}", c.beanType, c.ounces)
+	return fmt.Sprintf("{%v %voz}", c.beanType, c.ounces)
 }
 
 func (c *Coffee) BeanType() string {
