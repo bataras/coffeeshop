@@ -60,7 +60,6 @@ func (b *Barista) doWork() {
 		case grinder, ok = <-b.shop.grinderRefill:
 			if ok {
 				b.HandleGrinderRefill(grinder)
-				b.shop.grinders.Put(grinder) // put it back in rotation
 			}
 		}
 	}
@@ -109,10 +108,10 @@ func (b *Barista) HandleNewOrder(order *Order) {
 	grinder := order.grinder
 	groundBeans, err := grinder.Grind(beansNeeded, shop.roaster)
 	if grinder.ShouldRefill() {
-		shop.grinderRefill <- grinder
-	} else {
-		shop.grinders.Put(grinder) // put it back in rotation
+		shop.grinderRefill <- grinder // Fire and forget. It is available to be refilled in the background too
 	}
+	shop.grinders.Put(grinder) // put it back in rotation
+
 	if err != nil {
 		b.log.Errorf("grind error: %v", err)
 		order.Complete(nil, err)
@@ -137,13 +136,13 @@ func (b *Barista) HandleNewOrder(order *Order) {
 func (b *Barista) HandleDoneBrewer(order *Order) {
 	b.log.Infof("brewer done. give coffee to customer %v", order)
 	coffee := order.brewer.GetCoffee()
-	b.shop.brewers <- order.brewer // put it back
+	b.shop.brewers <- order.brewer // put it back in rotation
 	order.Complete(coffee, nil)
 }
 
 func (b *Barista) HandleGrinderRefill(grinder *Grinder) {
 	b.log.Infof("grinder refill %v", grinder)
-	if err := grinder.Refill(b.shop.roaster); err != nil {
+	if err := grinder.TryRefill(b.shop.roaster); err != nil {
 		b.log.Errorf("grinder refill error %v", err)
 	}
 }

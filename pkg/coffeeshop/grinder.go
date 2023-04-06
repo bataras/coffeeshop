@@ -18,6 +18,7 @@ type Grinder struct {
 	hopper              *Hopper
 	grindGramsPerSecond util.Rate
 	addGramsPerSecond   util.Rate
+	refillGate          atomic.Int32
 	refillPercentage    int
 }
 
@@ -59,11 +60,29 @@ func (g *Grinder) ShouldRefill() bool {
 	return g.hopper.PercentFull() < g.refillPercentage
 }
 
-// Refill refills the grinder if it's too low on product. takes time.
-// try to do this when idle instead of when fulfilling an order
-func (g *Grinder) Refill(f IRoaster) error {
+// TryRefill refills the grinder if it's too low on product. takes time.
+// try to do this when idle instead of when fulfilling an order so that
+// beans are ready when the customer orders
+func (g *Grinder) TryRefill(f IRoaster) error {
+	g.log.Infof("try background refill")
+
+	// This method is called externally to try to refill the hopper during idle time
+	// Use this simple one-way gate to avoid waiting for a refill that may already
+	// be happening on another thread ad-hoc while grinding
+	g.refillGate.Add(-1)
+	if g.refillGate.Add(1) > 0 {
+		return nil
+	}
+
+	// if we sneak through here, another thread that wants to grind will have to wait
+	// for this background refill. Or in a rare case, this thread will wait for the
+	// other thread only to find the refill is done.
+	// That's ok. It's kind of like a mutex with a weak lock path and a strong lock path.
+	// The weak lock (this one) may abort without waiting, but the strong lock (Grind)
+	// will always wait to succeed.
 	g.mu.Lock()
 	defer g.mu.Unlock()
+
 	return g.refillInternal(f, false)
 }
 
@@ -91,6 +110,12 @@ func (g *Grinder) refillInternal(roaster IRoaster, adHoc bool) error {
 
 // Grind grinds beans. takes time
 func (g *Grinder) Grind(grams int, roaster IRoaster) (model.Beans, error) {
+	g.refillGate.Add(1)
+	defer g.refillGate.Add(-1)
+
+	// by coffee shop design, this method is never supposed to be reentered. But we do
+	// want to prevent hopper refills from being reentered. It's just safer to
+	// lock the whole Grind method rather than just the internal refill
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
