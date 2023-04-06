@@ -1,7 +1,9 @@
+# note this isn't exhaustively error checked when it's read.
+
 shop:
   cashRegisterTimeMS: 200 # how long do the customer and barista spend starting an order
   baristaCount: 2  # can override with -baristas cmdline arg
-  customerCount: 1 # can override with -customers cmdline arg
+  customerCount: 2 # can override with -customers cmdline arg
 
 beans:
   bean1:

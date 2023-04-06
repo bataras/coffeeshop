@@ -21,11 +21,9 @@ type CoffeeShop struct {
 	log                *util.Logger
 }
 
-const cashRegisterTimeMS int = 200
-
 func NewCoffeeShop(cfg *config.Config) *CoffeeShop {
 
-	cashRegister := NewCashRegister(cashRegisterTimeMS)
+	cashRegister := NewCashRegister(cfg.Shop.CashRegisterTimeMS)
 	orderPipeDepth := len(cfg.Grinders) + len(cfg.Brewers) + 2 // max orders being handled in the shop
 	shop := CoffeeShop{
 		extractionProfiles: NewExtractionProfiles(),

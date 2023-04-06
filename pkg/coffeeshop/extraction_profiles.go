@@ -1,6 +1,9 @@
 package coffeeshop
 
-import "math"
+import (
+	"coffeeshop/pkg/util"
+	"math"
+)
 
 type ExtractionStrength int
 
@@ -26,9 +29,10 @@ type IExtractionProfiles interface {
 }
 
 type extractionProfile struct {
+	log                 *util.Logger
 	gramsNeededPerOunce float64
 	// todo: grind setting? like espresso, drip, etc
-	//grindSetting       int
+	// grindSetting       int
 }
 
 type extractionProfiles struct {
@@ -37,11 +41,12 @@ type extractionProfiles struct {
 
 // NewExtractionProfiles todo: configurability
 func NewExtractionProfiles() IExtractionProfiles {
+	log := util.NewLogger("ExtractionProfile")
 	return &extractionProfiles{
 		profiles: map[ExtractionStrength]extractionProfile{
-			Normal: {gramsNeededPerOunce: normalDripGrams / dripCupOunces},
-			Medium: {gramsNeededPerOunce: mediumDripGrams / dripCupOunces},
-			Light:  {gramsNeededPerOunce: lightDripGrams / dripCupOunces},
+			Normal: {log: log, gramsNeededPerOunce: normalDripGrams / dripCupOunces},
+			Medium: {log: log, gramsNeededPerOunce: mediumDripGrams / dripCupOunces},
+			Light:  {log: log, gramsNeededPerOunce: lightDripGrams / dripCupOunces},
 		},
 	}
 }
@@ -58,5 +63,7 @@ func (p *extractionProfiles) GetProfile(kind ExtractionStrength) IExtractionProf
 // GramsFromOunces computes grams using float and returns a rounded int gram amount
 func (p *extractionProfile) GramsFromOunces(ounces int) int {
 	val := p.gramsNeededPerOunce * float64(ounces)
-	return int(math.Round(val))
+	vali := int(math.Round(val))
+	p.log.Infof("%v grams for %v ounces", vali, ounces)
+	return vali
 }
