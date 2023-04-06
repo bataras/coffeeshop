@@ -3,11 +3,11 @@ package model
 import "fmt"
 
 type Coffee struct {
-	beanType BeanType
+	beanType string
 	ounces   int
 }
 
-func NewCoffee(beanType BeanType, ounces int) *Coffee {
+func NewCoffee(beanType string, ounces int) *Coffee {
 	return &Coffee{
 		beanType: beanType,
 		ounces:   ounces,
@@ -18,8 +18,9 @@ func (c *Coffee) String() string {
 	return fmt.Sprintf("{%v %v}", c.beanType, c.ounces)
 }
 
-func (c *Coffee) BeanType() BeanType {
-	return c.beanType
+func (c *Coffee) BeanType() string {
+	// return c.beanType
+	return ""
 }
 
 func (c *Coffee) Ounces() int {

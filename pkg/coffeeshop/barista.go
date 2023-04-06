@@ -1,7 +1,6 @@
 package coffeeshop
 
 import (
-	"coffeeshop/pkg/model"
 	"coffeeshop/pkg/util"
 	"fmt"
 	"sync/atomic"
@@ -60,7 +59,7 @@ func (b *Barista) doWork() {
 		case grinder, ok = <-b.shop.grinderRefill:
 			if ok {
 				b.HandleGrinderRefill(grinder)
-				b.shop.grinders <- grinder // put it back in rotation
+				b.shop.grinders.Put(grinder) // put it back in rotation
 			}
 		}
 	}
@@ -71,7 +70,7 @@ func (b *Barista) HandleOrderFromCashRegister(order *Order) {
 	// barista is doing work here, talking to the customer
 	b.shop.cashRegister.SpendTimeHandlingAnOrder(false)
 
-	beanTypes := model.BeanTypeMap()
+	beanTypes := b.shop.beanTypes
 
 	b.log.Infof("took order %v", order)
 	order.Start()
@@ -83,11 +82,16 @@ func (b *Barista) HandleOrderFromCashRegister(order *Order) {
 
 	// seeing an available grinder for an order waiting on the counter is essentially a signal
 	go func(order *Order) {
-		if grinder, ok := <-b.shop.grinders; ok {
+		ch, err := b.shop.grinders.ChanFor(order.BeanType)
+		if err != nil {
+			order.Complete(nil, err)
+			return
+		}
+		if grinder, ok := <-ch; ok {
 			order.SetGrinder(grinder)
 			b.shop.orderQueue.Push(order, order.Priority())
 		} else {
-			order.Complete(nil, fmt.Errorf("grinders are closed"))
+			order.Complete(nil, fmt.Errorf("%v grinders are closed", order.BeanType))
 		}
 	}(order)
 }
@@ -106,7 +110,7 @@ func (b *Barista) HandleNewOrder(order *Order) {
 	if grinder.ShouldRefill() {
 		shop.grinderRefill <- grinder
 	} else {
-		shop.grinders <- grinder // put it back in rotation
+		shop.grinders.Put(grinder) // put it back in rotation
 	}
 	if err != nil {
 		b.log.Infof("grind error: %v", err)

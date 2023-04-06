@@ -1,0 +1,40 @@
+shop:
+  cashRegisterTimeMS: 200 # how long do the customer and barista spend starting an order
+  baristaCount: 2  # can override with -baristas cmdline arg
+  customerCount: 1 # can override with -customers cmdline arg
+
+beans:
+  bean1:
+    type: columbian
+  bean2:
+    type: french
+  bean3:
+    type: ethiopian
+  bean4:
+    type: italian
+
+grinders:
+  grinder1:
+    beanId: bean1           # reference beans above
+    grindGramsPerSecond: 15 # how fast can it grind
+    addGramsPerSecond: 100  # how fast can beans be added during a refill
+    hopperSize: 100         # grams it can hold
+    refillPercentage: 50    # when to signal refill is needed
+  grinder2:
+    beanId: bean2
+    grindGramsPerSecond: 20
+    addGramsPerSecond: 100
+    hopperSize: 100
+    refillPercentage: 50
+  grinder3:
+    beanId: bean3
+    grindGramsPerSecond: 25
+    addGramsPerSecond: 100
+    hopperSize: 100
+    refillPercentage: 50
+
+brewers:
+  brewer1:
+    ouncesPerSecond: 8 # how fast can it brew
+  brewer2:
+    ouncesPerSecond: 10

@@ -27,6 +27,10 @@ func (s Strength) String() string {
 	}
 }
 
+func OrderStrengths() []Strength {
+	return []Strength{NormalStrength, MediumStrength, LightStrength}
+}
+
 type OrderState int
 
 const (
@@ -37,7 +41,7 @@ const (
 
 type Order struct {
 	OrderNumber          int // Incrementing
-	BeanType             model.BeanType
+	BeanType             string
 	OuncesOfCoffeeWanted int
 	StrengthWanted       Strength
 	State                OrderState // todo remove order state or use it with a single order queue

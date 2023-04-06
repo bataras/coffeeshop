@@ -2,9 +2,10 @@ package main
 
 import (
 	"coffeeshop/pkg/coffeeshop"
-	"coffeeshop/pkg/model"
+	"coffeeshop/pkg/config"
 	"coffeeshop/pkg/util"
 	log "github.com/sirupsen/logrus"
+	"math/rand"
 	"os"
 	"sync"
 	"time"
@@ -24,6 +25,13 @@ func init() {
 // todo: context shutown system-wide
 func main() {
 	log := util.NewLogger("Main")
+
+	cfg, err := config.Load("coffeeshop.yaml")
+	if err != nil {
+		log.Errorf("config problem: %v", err)
+		os.Exit(1)
+	}
+
 	// Premise: we want to model a coffee shop. An order comes in, and then with a limited amount of grinders and
 	// brewers (each of which can be "busy"): we must grind unground beans, take the resulting ground beans, and then
 	// brew them into liquid coffee. We need to coordinate the work when grinders and/or brewers are busy doing work
@@ -32,18 +40,11 @@ func main() {
 	// Some struct types and their functions need to be filled in properly. It may be helpful to finish the
 	// Grinder impl, and then Brewer impl each, and then see how things all fit together inside CoffeeShop afterwards.
 
-	g1 := coffeeshop.NewGrinder(model.Columbian, 15, 100, 100, 50)
-	g2 := coffeeshop.NewGrinder(model.Ethiopian, 20, 100, 100, 50)
-	g3 := coffeeshop.NewGrinder(model.French, 25, 100, 100, 50)
-
-	b1 := coffeeshop.NewBrewer(8)
-	b2 := coffeeshop.NewBrewer(10)
-
-	cs := coffeeshop.NewCoffeeShop([]*coffeeshop.Grinder{g1, g2, g3}, []*coffeeshop.Brewer{b1, b2}, 50)
+	cs := coffeeshop.NewCoffeeShop(cfg)
 
 	var wg sync.WaitGroup
-	doOrder := func(bean model.BeanType, ounces int, strength coffeeshop.Strength) {
-		receipt := cs.OrderCoffee(model.Columbian, 12, coffeeshop.NormalStrength)
+	doOrder := func(bean string, ounces int, strength coffeeshop.Strength) {
+		receipt := cs.OrderCoffee(bean, ounces, strength)
 		wg.Add(1)
 		go func() {
 			coffee, ok := <-receipt
@@ -59,11 +60,19 @@ func main() {
 			wg.Done()
 		}()
 	}
-	numCustomers := 50
+
+	var beanTypes []string
+	for bt, _ := range cfg.BeanTypes() {
+		beanTypes = append(beanTypes, bt)
+	}
+
+	strengths := coffeeshop.OrderStrengths()
+	numCustomers := cfg.Shop.CustomerCount
 	for i := 0; i < numCustomers; i++ {
-		// in parallel, all at once, make calls to MakeCoffee
-		doOrder(model.Columbian, 12, coffeeshop.NormalStrength)
-		doOrder(model.French, 8, coffeeshop.MediumStrength)
+		randomIndex := rand.Intn(len(beanTypes))
+		randomSize := rand.Intn(8) + 8
+		randomStrength := strengths[rand.Intn(len(strengths))]
+		doOrder(beanTypes[randomIndex], randomSize, randomStrength)
 	}
 	wg.Wait()
 

@@ -1,54 +1,58 @@
 package coffeeshop
 
 import (
+	"coffeeshop/pkg/config"
 	"coffeeshop/pkg/model"
 	"coffeeshop/pkg/util"
+	"strings"
 )
 
 type CoffeeShop struct {
 	extractionProfiles IExtractionProfiles
 	roaster            *Roaster
-	grinders           chan *Grinder
+	grinders           *GrinderPool
 	brewers            chan *Brewer
 	cashRegister       *CashRegister
 	orderPipeDepth     chan bool
 	orderQueue         *util.PriorityWaitQueue[*Order]
 	brewerDone         *util.PriorityWaitQueue[*Order]
 	grinderRefill      chan *Grinder
-	beanTypes          map[model.BeanType]bool
+	beanTypes          map[string]bool
 	log                *util.Logger
 }
 
 const cashRegisterTimeMS int = 200
 
-func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer, baristas int) *CoffeeShop {
+func NewCoffeeShop(cfg *config.Config) *CoffeeShop {
 
 	cashRegister := NewCashRegister(cashRegisterTimeMS)
-	orderPipeDepth := len(grinders) + len(brewers) + 2 // max orders being handled in the shop
+	orderPipeDepth := len(cfg.Grinders) + len(cfg.Brewers) + 2 // max orders being handled in the shop
 	shop := CoffeeShop{
 		extractionProfiles: NewExtractionProfiles(),
 		roaster:            NewRoaster(),
-		grinders:           make(chan *Grinder, len(grinders)), // todo: map of grinders
-		brewers:            make(chan *Brewer, len(brewers)),
-		grinderRefill:      make(chan *Grinder, len(grinders)),
+		grinders:           NewGrinderPool(len(cfg.Grinders)),
+		brewers:            make(chan *Brewer, len(cfg.Brewers)),
+		grinderRefill:      make(chan *Grinder, len(cfg.Grinders)),
+		orderQueue:         util.NewPriorityWaitQueue[*Order](),
 		brewerDone:         util.NewPriorityWaitQueue[*Order](),
 		cashRegister:       cashRegister,                    // todo: more than one cash register
 		orderPipeDepth:     make(chan bool, orderPipeDepth), // back pressure orders
-		orderQueue:         util.NewPriorityWaitQueue[*Order](),
+		beanTypes:          cfg.BeanTypes(),
 		log:                util.NewLogger("Shop"),
 	}
 
-	// todo build brewers/grinders from config and assign done channels here
-	for _, g := range grinders {
-		shop.grinders <- g
+	for _, gcfg := range cfg.Grinders {
+		grinder := NewGrinder(gcfg)
+		shop.grinders.Put(grinder)
 	}
 
-	for _, b := range brewers {
-		shop.brewers <- b
+	for _, bcfg := range cfg.Brewers {
+		brewer := NewBrewer(bcfg)
+		shop.brewers <- brewer
 	}
 
 	// fire off the baristas
-	for i := 0; i < baristas; i++ {
+	for i := 0; i < cfg.Shop.BaristaCount; i++ {
 		barista := NewBarista(&shop)
 		barista.StartWork()
 	}
@@ -57,14 +61,14 @@ func NewCoffeeShop(grinders []*Grinder, brewers []*Brewer, baristas int) *Coffee
 }
 
 // OrderCoffee fires off an order and returns a channel for the customer to wait on
-func (cs *CoffeeShop) OrderCoffee(beanType model.BeanType, ounces int, strength Strength) <-chan *model.Receipt {
+func (cs *CoffeeShop) OrderCoffee(beanType string, ounces int, strength Strength) <-chan *model.Receipt {
 	cs.orderPipeDepth <- true
 
 	rsp := make(chan *model.Receipt)
 	order := NewOrder(rsp, func() {
 		<-cs.orderPipeDepth
 	})
-	order.BeanType = beanType
+	order.BeanType = strings.ToLower(beanType)
 	order.OuncesOfCoffeeWanted = ounces
 	order.StrengthWanted = strength
 

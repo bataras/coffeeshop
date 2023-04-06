@@ -24,3 +24,6 @@ func NewLogger(prefix string) *Logger {
 func (l *Logger) Infof(fmt string, args ...interface{}) {
 	l.log.Infof(l.prefix+fmt, args...)
 }
+func (l *Logger) Errorf(fmt string, args ...interface{}) {
+	l.log.Errorf(l.prefix+fmt, args...)
+}

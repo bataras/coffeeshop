@@ -13,7 +13,7 @@ func NewRoaster() *Roaster {
 	return &Roaster{log: util.NewLogger("Roaster")}
 }
 
-func (r *Roaster) GetBeans(gramsNeeded int, beanType model.BeanType) model.Beans {
+func (r *Roaster) GetBeans(gramsNeeded int, beanType string) model.Beans {
 	r.log.Infof("getbeans %v", gramsNeeded)
 	return model.Beans{BeanType: beanType, WeightGrams: gramsNeeded}
 }

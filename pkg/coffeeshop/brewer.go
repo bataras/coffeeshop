@@ -1,6 +1,7 @@
 package coffeeshop
 
 import (
+	"coffeeshop/pkg/config"
 	"coffeeshop/pkg/model"
 	"coffeeshop/pkg/util"
 	"time"
@@ -15,11 +16,11 @@ type Brewer struct {
 	log             *util.Logger
 }
 
-func NewBrewer(ouncesPerSecond int) *Brewer {
+func NewBrewer(cfg *config.BrewerCfg) *Brewer {
 	val := &Brewer{
 		log: util.NewLogger("Brewer"),
 	}
-	val.ouncesPerSecond.SetPerSecond(ouncesPerSecond)
+	val.ouncesPerSecond.SetPerSecond(cfg.OuncesPerSecond)
 	return val
 }
 
