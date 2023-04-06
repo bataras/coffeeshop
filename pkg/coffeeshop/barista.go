@@ -135,7 +135,7 @@ func (b *Barista) HandleNewOrder(order *Order) {
 
 // HandleDoneBrewer does a non-blocking check for done brewers and put back in available queue
 func (b *Barista) HandleDoneBrewer(order *Order) {
-	b.log.Infof("brewer done %v", order)
+	b.log.Infof("brewer done. give coffee to customer %v", order)
 	coffee := order.brewer.GetCoffee()
 	b.shop.brewers <- order.brewer // put it back
 	order.Complete(coffee, nil)

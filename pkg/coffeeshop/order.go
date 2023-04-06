@@ -57,7 +57,7 @@ func NewOrder(receipts chan<- *model.Receipt, notifyComplete OrderDoneCB) *Order
 		done:           receipts,
 		notifyComplete: notifyComplete,
 		started:        time.Now(),
-		log:            util.NewLogger(fmt.Sprintf("--- Order %d: ", num)),
+		log:            util.NewLogger(fmt.Sprintf("--- Order %d", num)),
 	}
 }
 

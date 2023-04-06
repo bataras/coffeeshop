@@ -6,12 +6,14 @@ import (
 	"coffeeshop/pkg/util"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 type Grinder struct {
 	mu                  sync.Mutex
 	log                 *util.Logger
+	id                  int
 	beanType            string
 	hopper              *Hopper
 	grindGramsPerSecond util.Rate
@@ -29,9 +31,13 @@ func (f IRoasterFunc) GetBeans(gramsNeeded int, beanType string) model.Beans {
 	return f(gramsNeeded, beanType)
 }
 
+var grinderCount atomic.Int32
+
 func NewGrinder(cfg *config.GrinderCfg) *Grinder {
+	num := int(orderCount.Add(1))
 	val := &Grinder{
-		log:              util.NewLogger("Grinder"),
+		log:              util.NewLogger(fmt.Sprintf("Grinder %d %s", num, cfg.BeanCfg.BeanType)),
+		id:               num,
 		beanType:         cfg.BeanCfg.BeanType,
 		hopper:           NewHopper(cfg.HopperSize),
 		refillPercentage: cfg.RefillPercentage,
@@ -58,15 +64,17 @@ func (g *Grinder) ShouldRefill() bool {
 func (g *Grinder) Refill(f IRoaster) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	return g.refillInternal(f)
+	return g.refillInternal(f, false)
 }
 
 // do the actual refill. call when locked
-func (g *Grinder) refillInternal(roaster IRoaster) error {
+func (g *Grinder) refillInternal(roaster IRoaster, adHoc bool) error {
 	if g.hopper.PercentFull() >= g.refillPercentage {
-		g.log.Infof("refill not necessary")
+		g.log.Infof("refill not necessary: adhoc %v", adHoc)
 		return nil
 	}
+
+	g.log.Infof("refill: adhoc %v", adHoc)
 
 	beans := roaster.GetBeans(g.hopper.SpaceAvailable(), g.beanType)
 	if beans.BeanType != g.beanType {
@@ -88,7 +96,7 @@ func (g *Grinder) Grind(grams int, roaster IRoaster) (model.Beans, error) {
 
 	// ad-hoc refill
 	if g.hopper.Count() < grams {
-		err := g.refillInternal(roaster)
+		err := g.refillInternal(roaster, true)
 		if err != nil {
 			return model.Beans{}, err
 		}
