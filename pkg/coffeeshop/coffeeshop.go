@@ -25,6 +25,10 @@ func NewCoffeeShop(cfg *config.Config) *CoffeeShop {
 
 	cashRegister := NewCashRegister(cfg.Shop.CashRegisterTimeMS)
 	orderPipeDepth := len(cfg.Grinders) + len(cfg.Brewers) + 2 // max orders being handled in the shop
+	if cfg.Shop.OrderPipeDepth > 0 {
+		orderPipeDepth = cfg.Shop.OrderPipeDepth
+	}
+
 	shop := CoffeeShop{
 		extractionProfiles: NewExtractionProfiles(),
 		roaster:            NewRoaster(),
@@ -38,6 +42,8 @@ func NewCoffeeShop(cfg *config.Config) *CoffeeShop {
 		beanTypes:          cfg.BeanTypes(),
 		log:                util.NewLogger("Shop"),
 	}
+
+	shop.log.Infof("orderPipeDepth %d", orderPipeDepth)
 
 	for _, gcfg := range cfg.Grinders {
 		grinder := NewGrinder(gcfg)

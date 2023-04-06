@@ -114,7 +114,7 @@ func (b *Barista) HandleNewOrder(order *Order) {
 		shop.grinders.Put(grinder) // put it back in rotation
 	}
 	if err != nil {
-		b.log.Infof("grind error: %v", err)
+		b.log.Errorf("grind error: %v", err)
 		order.Complete(nil, err)
 		return
 	}
@@ -144,6 +144,6 @@ func (b *Barista) HandleDoneBrewer(order *Order) {
 func (b *Barista) HandleGrinderRefill(grinder *Grinder) {
 	b.log.Infof("grinder refill %v", grinder)
 	if err := grinder.Refill(b.shop.roaster); err != nil {
-		b.log.Infof("grinder refill error %v", err)
+		b.log.Errorf("grinder refill error %v", err)
 	}
 }
