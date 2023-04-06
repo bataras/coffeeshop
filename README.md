@@ -88,8 +88,12 @@ Beans
 --------
 - has a type (Columbian, Ethiopian, French, Italian, etc)
 - beans are created out of thin air
-- there is an endless supply of them
+- there is an endless supply of them (supplied by a Roaster)
 - the model is adaptable to later add a "Roaster" from which the coffee shop orders more beans
+
+Roaster
+--------
+- simply supplied beans on demand
 
 Extraction Profiles
 --------
