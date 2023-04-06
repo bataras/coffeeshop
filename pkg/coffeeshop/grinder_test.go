@@ -3,6 +3,7 @@ package coffeeshop
 import (
 	"coffeeshop/pkg/config"
 	"coffeeshop/pkg/model"
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -24,7 +25,8 @@ func TestGrinder_Refill(t *testing.T) {
 	g := NewGrinder(cfgFor("columbian", 1000, 1000, 100, 50))
 
 	called := 0
-	err := g.Refill(IRoasterFunc(func(gramsNeeded int, beanType string) model.Beans {
+	err := g.TryRefill(IRoasterFunc(func(gramsNeeded int, beanType string) model.Beans {
+		fmt.Printf("ask for %d %s\n", gramsNeeded, beanType)
 		called++
 		assert.Equal(t, 100, gramsNeeded)
 		return model.Beans{
@@ -35,7 +37,8 @@ func TestGrinder_Refill(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, called)
 
-	err = g.Refill(IRoasterFunc(func(gramsNeeded int, beanType string) model.Beans {
+	err = g.TryRefill(IRoasterFunc(func(gramsNeeded int, beanType string) model.Beans {
+		fmt.Printf("ask for %d %s\n", gramsNeeded, beanType)
 		called++
 		assert.Equal(t, 66, gramsNeeded)
 		return model.Beans{
@@ -47,7 +50,8 @@ func TestGrinder_Refill(t *testing.T) {
 	assert.Equal(t, 2, called)
 
 	called = 0
-	err = g.Refill(IRoasterFunc(func(gramsNeeded int, beanType string) model.Beans {
+	err = g.TryRefill(IRoasterFunc(func(gramsNeeded int, beanType string) model.Beans {
+		fmt.Printf("ask for %d %s\n", gramsNeeded, beanType)
 		called++
 		return model.Beans{
 			BeanType:    "columbian",
@@ -62,7 +66,7 @@ func TestGrinder_RefillWrongType(t *testing.T) {
 	g := NewGrinder(cfgFor("columbian", 1000, 1000, 100, 50))
 
 	called := 0
-	err := g.Refill(IRoasterFunc(func(gramsNeeded int, beanType string) model.Beans {
+	err := g.TryRefill(IRoasterFunc(func(gramsNeeded int, beanType string) model.Beans {
 		called++
 		assert.Equal(t, 100, gramsNeeded)
 		return model.Beans{
@@ -79,7 +83,7 @@ func TestGrinder_RefillTime(t *testing.T) {
 
 	tm := time.Now()
 	called := 0
-	err := g.Refill(IRoasterFunc(func(gramsNeeded int, beanType string) model.Beans {
+	err := g.TryRefill(IRoasterFunc(func(gramsNeeded int, beanType string) model.Beans {
 		called++
 		assert.Equal(t, 100, gramsNeeded)
 		return model.Beans{

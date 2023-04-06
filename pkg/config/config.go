@@ -23,6 +23,7 @@ type ShopCfg struct {
 	CashRegisterTimeMS int `koanf:"cashRegisterTimeMS"`
 	BaristaCount       int `koanf:"baristaCount"`
 	CustomerCount      int `koanf:"customerCount"`
+	OrderPipeDepth     int `koanf:"orderPipeDepth"`
 }
 
 type BeanCfg struct {

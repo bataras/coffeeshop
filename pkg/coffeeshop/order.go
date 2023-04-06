@@ -2,8 +2,10 @@ package coffeeshop
 
 import (
 	"coffeeshop/pkg/model"
+	"coffeeshop/pkg/util"
 	"fmt"
 	"sync/atomic"
+	"time"
 )
 
 type Strength int
@@ -31,14 +33,6 @@ func OrderStrengths() []Strength {
 	return []Strength{NormalStrength, MediumStrength, LightStrength}
 }
 
-type OrderState int
-
-const (
-	NeedsGrinder OrderState = iota
-	ReadyToBrew
-	Completed
-)
-
 type OrderDoneCB func()
 
 type Order struct {
@@ -46,21 +40,24 @@ type Order struct {
 	BeanType             string
 	OuncesOfCoffeeWanted int
 	StrengthWanted       Strength
-	State                OrderState // todo remove order state or use it with a single order queue
 	done                 chan<- *model.Receipt
 	grinder              *Grinder
 	brewer               *Brewer
-	notifyComplete       func()
+	notifyComplete       OrderDoneCB
+	started              time.Time
+	log                  *util.Logger
 }
 
 var orderCount atomic.Int32
 
 func NewOrder(receipts chan<- *model.Receipt, notifyComplete OrderDoneCB) *Order {
+	num := int(orderCount.Add(1))
 	return &Order{
-		OrderNumber:    int(orderCount.Add(1)),
-		State:          NeedsGrinder,
+		OrderNumber:    num,
 		done:           receipts,
 		notifyComplete: notifyComplete,
+		started:        time.Now(),
+		log:            util.NewLogger(fmt.Sprintf("--- Order %d", num)),
 	}
 }
 
@@ -74,12 +71,21 @@ func (o *Order) String() string {
 }
 
 func (o *Order) Start() {
+	o.started = time.Now()
+	o.log.Infof("start")
 }
 
 func (o *Order) Complete(coffee *model.Coffee, err error) {
+	took := time.Now().Sub(o.started)
+	if err == nil {
+		o.log.Infof("complete. took %v", took)
+	} else {
+		o.log.Errorf("complete. took %v: %v", took, err)
+	}
 	o.done <- &model.Receipt{
-		Coffee: coffee,
-		Err:    err,
+		OrderNumber: o.OrderNumber,
+		Coffee:      coffee,
+		Err:         err,
 	}
 	if o.notifyComplete != nil {
 		o.notifyComplete()
@@ -87,9 +93,11 @@ func (o *Order) Complete(coffee *model.Coffee, err error) {
 }
 
 func (o *Order) SetGrinder(grinder *Grinder) {
+	o.log.Infof("set grinder: %v", grinder)
 	o.grinder = grinder
 }
 
 func (o *Order) SetBrewer(brewer *Brewer) {
+	o.log.Infof("set brewer")
 	o.brewer = brewer
 }

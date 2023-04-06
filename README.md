@@ -1,6 +1,5 @@
 Coffee Shop Simulator in GO
-=========
-
+=======
 I drank a lot of coffee while coding this coffee shop simulator. I should code a microbrewery simulator next...
 
 Everyone knows what a coffee shop does, more or less. Customers line up to place orders.
@@ -17,6 +16,64 @@ the ground coffee and then stop. Meanwhile, the baristas drive things in the for
 customers, operating the machines or doing other tasks like maintenance and cleaning.
 
 We can decompose this into a simplified model as follows...
+
+How to Run
+--------
+**Build and run**
+```
+go build cmd/coffeeshop/main.go
+./main
+```
+
+**Get help**
+```
+./main -h
+
+Usage of config:
+  -baristas int
+    	number of baristas. -1 means use config file (default -1)
+  -conf string
+    	path to a .yaml config file (default "coffeeshop.yaml")
+  -customers int
+    	number of customers. -1 means use config file (default -1)
+```
+
+**Configure**
+
+Please see config.yaml. It's pretty self-explanatory with comments.
+
+See the results of orders...
+```
+./main >out
+grep "complete. took" out
+time="03:46:00.7474" level=error msg="--- Order 4: complete. took 95.794µs: no grinder pool for: italian"
+time="03:46:01.14892" level=error msg="--- Order 6: complete. took 135.366µs: no grinder pool for: italian"
+time="03:46:03.91426" level=info msg="--- Order 5: complete. took 2.965789169s"
+time="03:46:03.91432" level=error msg="--- Order 10: complete. took 190.395µs: no grinder pool for: italian"
+time="03:46:05.46731" level=info msg="--- Order 7: complete. took 4.117534529s"
+time="03:46:05.97251" level=info msg="--- Order 8: complete. took 4.421452261s"
+time="03:46:06.84365" level=info msg="--- Order 12: complete. took 2.527784843s"
+time="03:46:07.37389" level=info msg="--- Order 13: complete. took 2.857144459s"
+time="03:46:08.22001" level=info msg="--- Order 9: complete. took 4.506646346s"
+time="03:46:08.26912" level=info msg="--- Order 11: complete. took 4.154146254s"
+```
+
+See what a single barista did...
+```
+./main >out
+grep "Barista 1" out
+time="03:46:00.74724" level=info msg="Barista 1: handle cash register with 2 orders in the pipe"
+time="03:46:00.94832" level=info msg="Barista 1: took order Order#: 5 Beans: french Ounces: 9 Strength: NormalStrength"
+time="03:46:00.94861" level=info msg="Barista 1: grind start Order#: 5 Beans: french Ounces: 9 Strength: NormalStrength"
+time="03:46:02.84999" level=info msg="Barista 1: grind start Order#: 8 Beans: columbian Ounces: 9 Strength: MediumStrength"
+time="03:46:04.85171" level=info msg="Barista 1: grind start Order#: 13 Beans: ethiopian Ounces: 14 Strength: NormalStrength"
+time="03:46:05.97245" level=info msg="Barista 1: brewer done. give coffee to customer Order#: 8 Beans: columbian Ounces: 9 Strength: MediumStrength"
+time="03:46:05.97255" level=info msg="Barista 1: grinder refill bean: ethiopian hopper 48 48"
+time="03:46:06.53475" level=info msg="Barista 1: grind start Order#: 11 Beans: columbian Ounces: 8 Strength: MediumStrength"
+time="03:46:08.26903" level=info msg="Barista 1: brewer done. give coffee to customer Order#: 11 Beans: columbian Ounces: 8 Strength: MediumStrength"
+```
+
+There can be much more metrics gathering; like how busy each barista, grinder and brewer are
 
 Beans
 --------
@@ -35,16 +92,6 @@ Grinder
 - can only be used by one barista at a time
 - never has to be cleaned or breaks down
 - baristas cannot do anything else while waiting for the grinder to grind
-
-Ad-hoc Grinder
---------
-- has no hopper
-- must be loaded with X grams of beans L(X) time prior to grinding
-- can grind X grams of any type of bean in grinder-specific G(X) time
-- only grinds for one order at a time
-- can only be used by one barista at a time
-- never has to be cleaned or breaks down
-- because grinding is quick, baristas cannot do anything else while waiting for the grinder to grind
 
 Brewer
 --------
@@ -94,7 +141,6 @@ Coffee Shop Configuration
 - has 1 or more grinders
 - has 1 or more brewers
 - has 1 or more types of beans
-- if it has > 1 bean types B, it must have either B hopper-grinders or at least 1 ad-hoc grinder
 - coffee strengths: grams of beans needed for light, medium, strong
 - coffee sizes: small, medium, large... 8, 12 or 16oz
 - P time for customer to place order
@@ -130,8 +176,7 @@ Order Processing Pipeline
 Resource Pools
 -------
 - one availability pool for each bean type specific hopper/grinder
-- one availability pool for each ad-hoc grinder
-- one availability pool for each brewer
+- one availability pool the brewers
 
 Processing Queues
 -------
@@ -143,11 +188,10 @@ Processing Queues
 - one priority queue for each paired order/grinder. priority by order time
 - one queue for brewer machines are done brewing
 
-Order/Grinder Pairing Stage
+Order/Grinder Pairing
 ----------
 - pairs available grinders with oldest matching order
-  - using ephemeral resource-affinity queues that are created on demand
-  - newer orders can potentially process before older ones depending on grinder availability
+  - newer orders can potentially process before older ones depending on grinder/bean availability
 - forwards matched pairs to the order/grinder priority queue based on order age
 
 Barista Handling Stage
@@ -196,3 +240,4 @@ General approach...
   - does the library's interface appear to be generalized and abstracted enough to reasonably extensible
   - does it feel too tightly coupled for the usage model
   - on the other hand, sometimes it's ok to knowingly adopt something that you can grow with longer term
+  - balancing tech debt

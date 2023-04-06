@@ -1,6 +1,7 @@
 package model
 
 type Receipt struct {
-	Coffee *Coffee
-	Err    error
+	OrderNumber int // Incrementing
+	Coffee      *Coffee
+	Err         error
 }

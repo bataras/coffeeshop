@@ -1,7 +1,8 @@
 shop:
   cashRegisterTimeMS: 200 # how long do the customer and barista spend starting an order
   baristaCount: 2  # can override with -baristas cmdline arg
-  customerCount: 1 # can override with -customers cmdline arg
+  customerCount: 10 # can override with -customers cmdline arg
+  orderPipeDepth: -1 # max orders that can be in flight in the shop. -1 defaults to a number based on shop resources
 
 beans:
   bean1:

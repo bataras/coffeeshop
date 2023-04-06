@@ -51,9 +51,9 @@ func main() {
 				log.Infof("order closed")
 			} else {
 				if coffee.Err != nil {
-					log.Infof("order handling error %v", coffee.Err)
+					log.Errorf("order handling error %v", coffee.Err)
 				} else {
-					log.Infof("made %v", coffee.Coffee)
+					log.Infof("made Order#: %d Coffee: %s", coffee.OrderNumber, coffee.Coffee.String())
 				}
 			}
 			wg.Done()
