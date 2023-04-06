@@ -75,6 +75,9 @@ time="03:46:08.26903" level=info msg="Barista 1: brewer done. give coffee to cus
 
 There can be much more metrics gathering; like how busy each barista, grinder and brewer are
 
+Primary Entities and Resources
+=========
+
 Beans
 --------
 - has a type (Columbian, Ethiopian, French, Italian, etc)
