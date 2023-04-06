@@ -35,7 +35,7 @@ func (f IRoasterFunc) GetBeans(gramsNeeded int, beanType string) model.Beans {
 var grinderCount atomic.Int32
 
 func NewGrinder(cfg *config.GrinderCfg) *Grinder {
-	num := int(orderCount.Add(1))
+	num := int(grinderCount.Add(1))
 	val := &Grinder{
 		log:              util.NewLogger(fmt.Sprintf("Grinder %d %s", num, cfg.BeanCfg.BeanType)),
 		id:               num,
