@@ -25,7 +25,7 @@ TryLock implements a try-able mutex a counter gate
 */
 type TryLock struct {
 	gate  sync.Mutex
-	mu    sync.Mutex
+	lock  sync.Mutex
 	count int
 }
 
@@ -40,9 +40,9 @@ func (t *TryLock) TryLock() bool {
 	}
 	t.count++
 
-	t.mu.Lock()
+	t.lock.Lock()
 	t.gate.Unlock()
-	// fmt.Printf("trylock count %v %v\n", t.count, t.mu)
+	// fmt.Printf("trylock count %v %v\n", t.count, t.lock)
 	return true
 }
 
@@ -50,13 +50,15 @@ func (t *TryLock) Lock() {
 	t.gate.Lock()
 	t.count++
 	t.gate.Unlock()
-	t.mu.Lock()
+	t.lock.Lock()
 }
 
 func (t *TryLock) Unlock() {
-	// fmt.Printf("unlock %v %v\n", t.count, t.mu)
+	// fmt.Printf("unlock %v %v\n", t.count, t.lock)
+	t.gate.Lock()
 	t.count--
-	t.mu.Unlock()
+	t.gate.Unlock()
+	t.lock.Unlock()
 }
 
 /* -------------------- TryLockC -------------------- */
