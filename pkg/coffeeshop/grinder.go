@@ -5,13 +5,13 @@ import (
 	"coffeeshop/pkg/model"
 	"coffeeshop/pkg/util"
 	"fmt"
-	"sync"
 	"sync/atomic"
 	"time"
 )
 
 type Grinder struct {
-	mu                  sync.Mutex
+	// mu                  sync.Mutex
+	mux                 util.ITryMutex
 	log                 *util.Logger
 	id                  int
 	beanType            string
@@ -39,6 +39,7 @@ func NewGrinder(cfg *config.GrinderCfg) *Grinder {
 	val := &Grinder{
 		log:              util.NewLogger(fmt.Sprintf("Grinder %d %s", num, cfg.BeanCfg.BeanType)),
 		id:               num,
+		mux:              util.NewTryLockC(),
 		beanType:         cfg.BeanCfg.BeanType,
 		hopper:           NewHopper(cfg.HopperSize),
 		refillPercentage: cfg.RefillPercentage,
@@ -66,23 +67,28 @@ func (g *Grinder) ShouldRefill() bool {
 func (g *Grinder) TryRefill(f IRoaster) error {
 	g.log.Infof("try background refill")
 
-	// This method is called externally to try to refill the hopper during idle time
-	// Use this simple one-way gate to avoid waiting for a refill that may already
-	// be happening on another thread ad-hoc while grinding
-	g.refillGate.Add(-1)
-	if g.refillGate.Add(1) > 0 {
+	/*
+		// This method is called externally to try to refill the hopper during idle time
+		// Use this simple one-way gate to avoid waiting for a refill that may already
+		// be happening on another thread ad-hoc while grinding
+		g.refillGate.Add(-1)
+		if g.refillGate.Add(1) > 0 {
+			return nil
+		}
+
+		// if we sneak through here, another thread that wants to grind will have to wait
+		// for this background refill. Or in a rare case, this thread will wait for the
+		// other thread only to find the refill is done.
+		// That's ok. It's kind of like a mutex with a weak lock path and a strong lock path.
+		// The weak lock (this one) may abort without waiting, but the strong lock (Grind)
+		// will always wait to succeed.
+		g.mu.Lock()
+		defer g.mu.Unlock()
+	*/
+	if !g.mux.TryLock() {
 		return nil
 	}
-
-	// if we sneak through here, another thread that wants to grind will have to wait
-	// for this background refill. Or in a rare case, this thread will wait for the
-	// other thread only to find the refill is done.
-	// That's ok. It's kind of like a mutex with a weak lock path and a strong lock path.
-	// The weak lock (this one) may abort without waiting, but the strong lock (Grind)
-	// will always wait to succeed.
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
+	defer g.mux.Unlock()
 	return g.refillInternal(f, false)
 }
 
@@ -110,14 +116,16 @@ func (g *Grinder) refillInternal(roaster IRoaster, adHoc bool) error {
 
 // Grind grinds beans. takes time
 func (g *Grinder) Grind(grams int, roaster IRoaster) (model.Beans, error) {
-	g.refillGate.Add(1)
-	defer g.refillGate.Add(-1)
+	/*
+		g.refillGate.Add(1)
+		defer g.refillGate.Add(-1)
 
-	// by coffee shop design, this method is never supposed to be reentered. But we do
-	// want to prevent hopper refills from being reentered. It's just safer to
-	// lock the whole Grind method rather than just the internal refill
-	g.mu.Lock()
-	defer g.mu.Unlock()
+		// by coffee shop design, this method is never supposed to be reentered. But we do
+		// want to prevent hopper refills from being reentered. It's just safer to
+		// lock the whole Grind method rather than just the internal refill
+		g.mu.Lock()
+		defer g.mu.Unlock()
+	*/
 
 	// ad-hoc refill
 	if g.hopper.Count() < grams {
