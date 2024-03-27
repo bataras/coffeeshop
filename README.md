@@ -1,5 +1,7 @@
 Coffee Shop Simulator in GO
 =======
+A GO project just for fun...
+
 I drank a lot of coffee while coding this coffee shop simulator. I should code a microbrewery simulator next...
 
 Everyone knows what a coffee shop does, more or less. Customers line up to place orders.
